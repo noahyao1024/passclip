@@ -38,7 +38,7 @@ try {
     assert.equal(signed.headers.get("cache-control"), "no-store"); assert.match(signed.headers.get("content-disposition"), /^attachment; filename="[a-zA-Z0-9-]+\.pkpass"$/);
     const bytes = new Uint8Array(await signed.arrayBuffer()); assert.equal(bytes[0], 0x50); assert.equal(bytes[1], 0x4b);
   }
-  browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ?? ["/usr/bin/chromium", "/opt/pw-browsers/chromium"].find((path) => existsSync(path)) });
+  browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ?? (existsSync(chromium.executablePath()) ? undefined : ["/usr/bin/chromium", "/opt/pw-browsers/chromium"].find((path) => existsSync(path))) });
   const page = await browser.newPage(); const errors = [];
   page.on("pageerror", () => errors.push("Page error"));
   page.on("console", (message) => { if (message.type() === "error") errors.push("Browser error"); });

@@ -26,7 +26,7 @@ describe("signed pass package", () => {
     if (!result.ok) throw new Error("Invalid fixture");
     const buffer = await buildPass(result.value.passes[0], signing, { source: result.value.source });
     const target = path.join(dir, name); writeFileSync(target + ".zip", buffer);
-    execFileSync("python", ["-c", "import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])", target + ".zip", target]);
+    execFileSync("python3", ["-c", "import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])", target + ".zip", target]);
     const manifest = JSON.parse(readFileSync(path.join(target, "manifest.json"), "utf8"));
     for (const [file, digest] of Object.entries(manifest)) expect(createHash("sha1").update(readFileSync(path.join(target, file))).digest("hex")).toBe(digest);
     const pass = JSON.parse(readFileSync(path.join(target, "pass.json"), "utf8"));

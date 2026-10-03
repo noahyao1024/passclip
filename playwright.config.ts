@@ -1,9 +1,11 @@
 import { existsSync } from "node:fs";
-import { defineConfig } from "@playwright/test";
+import { chromium, defineConfig } from "@playwright/test";
 
-// System Chromium on Linux machines, or the one preinstalled in Claude Code cloud sessions.
+// Playwright's own Chromium when it's installed (CI); otherwise a system Chromium, or the one
+// preinstalled in Claude Code cloud sessions.
 const systemChromium =
-  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ?? ["/usr/bin/chromium", "/opt/pw-browsers/chromium"].find((path) => existsSync(path));
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ??
+  (existsSync(chromium.executablePath()) ? undefined : ["/usr/bin/chromium", "/opt/pw-browsers/chromium"].find((path) => existsSync(path)));
 
 export default defineConfig({
   testDir: "./tests/browser",
