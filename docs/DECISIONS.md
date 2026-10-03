@@ -34,3 +34,12 @@ Not confirmed in Apple's docs yet: that the pass certificate's subject holds the
 
 ## D8: Browser validation must work under a strict CSP (to do in Milestone 1)
 Ajv turns the schema into JavaScript at runtime. A strict Content-Security-Policy (SPEC §11) blocks that in the browser unless it allows `unsafe-eval`. Milestone 1 should precompile the validator with Ajv's standalone code generation (a generated file, like `types.ts`) rather than loosen the CSP. `src/lib/import/validate.ts` compiles at runtime for now, which is fine for scripts and tests.
+
+## D9: The iPhone app comes right after Milestone 2 (2026-10-03)
+The owner wants a native app as well as the website. The website still goes first, through Milestone 2, because the app needs the same server to sign passes (the signing key can't ship inside an app) and the website gets real passes working soonest. Then the iOS app starts: its share sheet and on-device extraction are what beat iOS 27's built-in pass creation. M3 to M6 stay, kept small, and are scheduled around the app. App work needs a Mac with Xcode, so it's best done with Claude Code on the owner's Mac.
+
+## D10: Validation runs in the browser, and clean-up is a bit more lenient (Milestone 1, in progress)
+- The schema validator is precompiled by `npm run gen:types` (Ajv standalone code with its one runtime helper inlined), which resolves D8. Ajv's own error messages are left out, because `messages.ts` writes plain ones.
+- Before validation, Passclip also drops empty values (null, "", {}, []) and attachments without a full https link, with a warning. AI replies often contain empty values, and SPEC §3.3 asks for removing non-https links rather than failing. Passes are never dropped, so pass numbers in messages match the JSON.
+- Warnings carry a kind: things Passclip already fixed (`kind: "fix"`) can be shown more quietly than things the user should check.
+- Status and next steps: `docs/HANDOFF.md`.

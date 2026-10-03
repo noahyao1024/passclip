@@ -64,5 +64,5 @@ Keep these current:
 - `npm run lint`: ESLint
 - `npm run typecheck`: generates Next's route types (`next typegen`), then runs `tsc --noEmit`
 - `npm run validate:examples`: check every `examples/*.json` against the schema (`npm test` covers the recoverable and invalid fixtures)
-- `npm run gen:types`: regenerate `src/lib/import/types.ts` from the schema. A test fails if you forget.
+- `npm run gen:types`: regenerate `src/lib/import/types.ts` and the precompiled validator (`schema-validator.generated.ts`) from the schema. A test fails if you forget.
 - `npm run check:env`: check the pass signing settings in `.env.local`. It exits with an error until they're set up.

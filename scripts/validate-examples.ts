@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { describeErrors } from "@/lib/import/messages";
 import { checkAgainstSchema } from "@/lib/import/validate";
 import { listExamples } from "./lib/examples";
 
@@ -14,7 +15,7 @@ function problemsIn(file: string): string[] {
   }
   const result = checkAgainstSchema(data);
   if (result.valid) return [];
-  return result.errors.map((error) => `${error.instancePath || "(root)"} ${error.message ?? error.keyword}`);
+  return describeErrors(result.errors).map((error) => error.message);
 }
 
 function main() {
