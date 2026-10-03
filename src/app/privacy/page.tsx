@@ -32,6 +32,12 @@ export default function PrivacyPage() {
         privacy policies.
       </p>
 
+      <h2>Barcode screenshots</h2>
+      <p>
+        When you add a screenshot or photo of a barcode, your browser reads the
+        code on your device. The image is never uploaded or saved. A code is
+        only added to your pass when you choose it.
+      </p>
       <h2>You choose the AI service</h2>
       <p>
         Copying our prompt does not contact an AI service. If you fill in the

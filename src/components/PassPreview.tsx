@@ -134,7 +134,7 @@ export function PassPreview({ pass, layout }: PassPreviewProps) {
         <p className={`barcode-status${barcode.result?.status === "failed" ? " barcode-error" : ""}`} role="status">
           {!pass.barcode ? "No barcode yet: add a screenshot" : barcode.result?.status === "failed" ? "Barcode preview unavailable" : barcode.result?.status === "ready" ? "Barcode ready" : "Rendering barcode…"}
         </p>
-        {!pass.barcode ? <p className="barcode-help">Screenshot decoding isn’t available yet.</p> : barcode.result?.status === "failed" ? <p className="barcode-help">Check that the code format matches the original ticket.</p> : null}
+        {pass.barcode && barcode.result?.status === "failed" ? <p className="barcode-help">Check that the code format matches the original ticket.</p> : null}
       </div>
     </div>
   );
