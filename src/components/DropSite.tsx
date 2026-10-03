@@ -6,6 +6,7 @@ import { processImport } from "@/lib/import/process";
 import { MAX_INPUT_BYTES } from "@/lib/import/parse";
 import type { Warning } from "@/lib/import/notices";
 import { layoutPass } from "@/lib/pass/fields";
+import { AddToWallet } from "./AddToWallet";
 import { PassPreview } from "./PassPreview";
 import { ArrowMark, ClipMark, TicketMark } from "./Marks";
 
@@ -152,13 +153,13 @@ export default function DropSite({ prompt, walletAvailable = false, development 
           const { needsTimeZone: _needsTimeZone, ...payload } = pass;
           void _needsTimeZone;
           const importText = JSON.stringify({ schemaVersion: "1.0", source: result.value.source, passes: [payload] });
-          return <article className="pass-result" key={`${index}-${pass.type}`}><div className="pass-result-heading"><span>Pass {index + 1}</span><h3>{pass.title}</h3></div><PassPreview pass={pass} layout={layout} /><Warnings warnings={warnings} /><div className="pass-actions"><form method="post" action="/api/pass" target="_self"><input type="hidden" name="import" value={importText} /><input type="hidden" name="fallbackTimeZone" value={pass.timeZone ?? "UTC"} /><button className="button button-secondary" disabled={!walletAvailable}>Add to Apple Wallet</button></form>{pass.start && pass.calendar?.add !== false && <button className="button button-secondary" disabled>Add to calendar</button>}{development && <button className="text-button" onClick={async () => {
+          return <article className="pass-result" key={`${index}-${pass.type}`}><div className="pass-result-heading"><span>Pass {index + 1}</span><h3>{pass.title}</h3></div><PassPreview pass={pass} layout={layout} /><Warnings warnings={warnings} /><div className="pass-actions">{walletAvailable && <AddToWallet importText={importText} fallbackTimeZone={pass.timeZone ?? "UTC"} />}{development && <button className="text-button" onClick={async () => {
             const { mapToPassJson } = await import("@/lib/pass/map");
             const json = mapToPassJson(pass, { passTypeIdentifier: "pass.preview.unconfigured", teamIdentifier: "UNCONFIGURED", serialNumber: crypto.randomUUID(), source: result.value.source });
             const url = URL.createObjectURL(new Blob([JSON.stringify(json, null, 2)], { type: "application/json" }));
             const link = document.createElement("a"); link.href = url; link.download = "pass.json"; link.click();
             window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-          }}>Download pass.json</button>}</div><p className="action-note">{walletAvailable ? "On a computer, send the downloaded file to your iPhone with AirDrop, Messages or email." : "Pass signing isn't set up yet."}{pass.start && pass.calendar?.add !== false && " Calendar files are coming in a later milestone."}</p></article>;
+          }}>Download pass.json</button>}</div><p className="action-note">{walletAvailable ? "On a computer, the pass downloads as a file. Send it to your iPhone with AirDrop, Messages or email, then open it there." : "Pass signing isn't set up yet, so this is a preview."}</p></article>;
         })}</div>
       </>}
     </section>

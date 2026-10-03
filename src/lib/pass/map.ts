@@ -2,6 +2,7 @@ import { DateTime } from "luxon";
 import type { NormalizedPass } from "../import/normalize";
 import type { Source } from "../import/types";
 import { layoutPass, type PassField, type TransitType } from "./fields";
+import { semanticsFor, type SemanticTags } from "./semantics";
 
 export interface PassConfig {
   passTypeIdentifier: string;
@@ -23,8 +24,10 @@ export interface WalletPass {
   relevantDate?: string; relevantDates?: { startDate: string; endDate: string }[];
   expirationDate?: string;
   locations?: { latitude: number; longitude: number; relevantText: string }[];
+  semantics?: SemanticTags;
   eventTicket?: WalletFields; boardingPass?: WalletFields; storeCard?: WalletFields; coupon?: WalletFields; generic?: WalletFields;
 }
+const stopName = (stop: { code?: string; name?: string; city?: string }) => stop.city ?? stop.name ?? stop.code ?? "";
 const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ")})`;
 const shift = (value: string, hours: number) => DateTime.fromISO(value, { setZone: true }).plus({ hours }).toISO({ suppressMilliseconds: true })!;
 
@@ -32,7 +35,8 @@ const shift = (value: string, hours: number) => DateTime.fromISO(value, { setZon
 export function mapToPassJson(pass: NormalizedPass, config: PassConfig): WalletPass {
   const layout = layoutPass(pass, config);
   const descriptions = {
-    eventTicket: `Event ticket for ${pass.title}`, boardingPass: `Boarding pass for ${pass.title}`,
+    eventTicket: `Event ticket for ${pass.title}`,
+    boardingPass: pass.transit ? `Boarding pass from ${stopName(pass.transit.from)} to ${stopName(pass.transit.to)}` : `Boarding pass for ${pass.title}`,
     storeCard: `Loyalty card for ${pass.title}`, coupon: `Coupon from ${pass.organization ?? pass.title}`, generic: `Pass for ${pass.title}`,
   };
   const output: WalletPass = {
@@ -52,11 +56,14 @@ export function mapToPassJson(pass: NormalizedPass, config: PassConfig): WalletP
     const startDate = shift(pass.type === "boardingPass" ? pass.transit?.boardingTime ?? pass.start : pass.start, -3);
     const endDate = pass.type === "boardingPass" ? shift(pass.start, 1) : pass.end ?? shift(pass.start, 3);
     const duration = DateTime.fromISO(endDate).diff(DateTime.fromISO(startDate), "hours").hours;
-    // Wallet intervals are limited to 24 hours; retain the legacy relevantDate otherwise.
+    // Apple documents no maximum interval length (checked 2026-10-03, D13). Until multi-day
+    // intervals are checked on a device, those keep only the legacy relevantDate.
     if (duration > 0 && duration <= 24) output.relevantDates = [{ startDate, endDate }];
     output.expirationDate = pass.expires ?? shift(pass.end ?? pass.start, 6);
   } else if (pass.expires) output.expirationDate = pass.expires;
   const place = pass.type === "boardingPass" ? pass.transit?.from : pass.venue;
   if (place?.latitude !== undefined && place.longitude !== undefined) output.locations = [{ latitude: place.latitude, longitude: place.longitude, relevantText: pass.title }];
+  const semantics = semanticsFor(pass);
+  if (semantics) output.semantics = semantics;
   return output;
 }
