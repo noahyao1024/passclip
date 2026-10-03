@@ -1,6 +1,6 @@
 # Passclip
 
-Passclip turns tickets, bookings, memberships and coupons into Apple Wallet passes. Phase 1 is a website: drop the JSON from any AI chat, check the preview, and add the pass to Wallet.
+Passclip turns tickets, bookings, memberships and coupons into Apple Wallet passes. Milestone 1 provides the drop site: paste the JSON from any AI chat and check all five pass styles in a live preview. Signed Wallet downloads arrive in Milestone 2.
 
 ## What's inside
 
@@ -19,11 +19,26 @@ Passclip turns tickets, bookings, memberships and coupons into Apple Wallet pass
 You need Node.js 20.9 or later.
 
 ```
-npm install
+npm ci
 npm run dev
 ```
 
 Then open http://localhost:3000. `CLAUDE.md` lists every command.
+
+Imports and the optional ticket email stay in browser memory. No Apple credentials are needed for previews. Use **Try an example** to see the flow, or choose a file from `examples/`.
+
+## Check changes
+
+```
+npm run typecheck && npm run lint && npm test
+npm run validate:examples
+npm run build
+npm run test:browser
+```
+
+The browser suite starts the production build on port 3100 and checks desktop/light and 360 px/dark Chromium. It uses `/usr/bin/chromium` when available; otherwise run `npx playwright install chromium` first. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to use another installed Chromium. Stop any server on port 3100 before the suite. Real iPhone Safari still needs a device check.
+
+The heading font is self-hosted with its license. The AI prompt comes directly from `prompts/extract-to-passclip.txt` at build time through a local text loader; the browser tests check that copying it preserves the file exactly.
 
 ## How to work on it
 

@@ -61,6 +61,7 @@ Keep these current:
 - `npm run dev`: start the site at http://localhost:3000
 - `npm run build`: production build
 - `npm test`: unit and contract tests, once; `npm run test:watch` re-runs them on every change
+- `npm run test:browser`: after `npm run build`, checks the production site in desktop/light and 360 px/dark Chromium. Uses system Chromium when available, or install it with `npx playwright install chromium`. Does not replace a real iPhone Safari check.
 - `npm run lint`: ESLint
 - `npm run typecheck`: generates Next's route types (`next typegen`), then runs `tsc --noEmit`
 - `npm run validate:examples`: check every `examples/*.json` against the schema (`npm test` covers the recoverable and invalid fixtures)
