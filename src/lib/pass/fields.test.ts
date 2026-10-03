@@ -21,7 +21,7 @@ describe("layouts for all five pass styles", () => {
   });
 
   it("every example respects the caps and has unique keys", () => {
-    for (const name of ["event-tickets", "flight", "loyalty-card", "coupon", "gym-membership", "train-local-time"]) {
+    for (const name of ["event-tickets", "flight", "loyalty-card", "coupon", "gym-membership", "train-local-time", "grocery-card"]) {
       const result = processImport(readFileSync(`examples/${name}.json`, "utf8"), { fallbackTimeZone: "Asia/Tokyo" });
       if (!result.ok) throw new Error(`Example failed to process: ${name}`);
       const imported = result.value;

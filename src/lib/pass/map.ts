@@ -20,7 +20,7 @@ export interface WalletPass {
   organizationName: string; description: string; logoText: string;
   backgroundColor: string; foregroundColor: string; labelColor: string;
   groupingIdentifier?: string;
-  barcodes?: { format: "PKBarcodeFormatQR" | "PKBarcodeFormatPDF417" | "PKBarcodeFormatAztec" | "PKBarcodeFormatCode128"; message: string; messageEncoding: "iso-8859-1" | "utf-8"; altText?: string }[];
+  barcodes?: { format: "PKBarcodeFormatQR" | "PKBarcodeFormatPDF417" | "PKBarcodeFormatAztec" | "PKBarcodeFormatCode128" | "PKBarcodeFormatEAN13" | "PKBarcodeFormatCode39" | "PKBarcodeFormatCodabar" | "PKBarcodeFormatI2of5"; message: string; messageEncoding: "iso-8859-1" | "utf-8"; altText?: string }[];
   relevantDate?: string; relevantDates?: { startDate: string; endDate: string }[];
   expirationDate?: string;
   locations?: { latitude: number; longitude: number; relevantText: string }[];
@@ -48,7 +48,11 @@ export function mapToPassJson(pass: NormalizedPass, config: PassConfig): WalletP
   };
   if ((pass.type === "eventTicket" || pass.type === "boardingPass") && pass.confirmationCode) output.groupingIdentifier = pass.confirmationCode;
   if (pass.barcode) {
-    const formats = { qr: "PKBarcodeFormatQR", pdf417: "PKBarcodeFormatPDF417", aztec: "PKBarcodeFormatAztec", code128: "PKBarcodeFormatCode128" } as const;
+    // Apple's format strings (pass.json docs, checked 2026-10-03, D17). The last four need iOS 27.
+    const formats = {
+      qr: "PKBarcodeFormatQR", pdf417: "PKBarcodeFormatPDF417", aztec: "PKBarcodeFormatAztec", code128: "PKBarcodeFormatCode128",
+      ean13: "PKBarcodeFormatEAN13", code39: "PKBarcodeFormatCode39", codabar: "PKBarcodeFormatCodabar", itf: "PKBarcodeFormatI2of5",
+    } as const;
     output.barcodes = [{ format: formats[pass.barcode.format], message: pass.barcode.message, messageEncoding: /[^\u0000-\u00ff]/.test(pass.barcode.message) ? "utf-8" : "iso-8859-1", ...(pass.barcode.altText ? { altText: pass.barcode.altText } : {}) }];
   }
   if (pass.start && (pass.type === "eventTicket" || pass.type === "boardingPass")) {

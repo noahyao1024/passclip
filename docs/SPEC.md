@@ -42,7 +42,7 @@ Not in Phase 1: accounts, a saved pass library, pass updates and push (`webServi
 Source of truth: `schema/passclip-import.v1.schema.json` (JSON Schema 2020-12). It already compiles in Ajv's strictest mode.
 
 ```
-{ schemaVersion: "1.0", source?: Source, passes: Pass[], warnings?: string[] }
+{ schemaVersion: "1.1", source?: Source, passes: Pass[], warnings?: string[] }   // "1.0" files are read too
 ```
 
 Pass types mirror Apple's pass styles: `eventTicket`, `boardingPass`, `storeCard`, `coupon`, `generic`. Only `type` and `title` are required. Boarding passes also need `transit` (with `mode`, `from` and `to`). Field meanings are in the schema's `description`s.
@@ -83,7 +83,7 @@ The normalized object, not the raw import, is what the preview, the pass builder
 - **Text:** trim, collapse repeated spaces, strip control characters. Text over display limits stays, with a warning, because Wallet truncates long values.
 - **Colors:** if only `backgroundColor` is set, pick white or black foreground, whichever has more contrast, and derive `labelColor` between foreground and background. With no `style`, use the type defaults in §4.5. Foreground-to-background contrast must be at least 4.5:1; if not, fix it and warn.
 - **Attachments:** https only. Others are removed with a warning.
-- **Barcodes:** never change the message. Code 128 gets a preview warning: Apple Watch can't display it.
+- **Barcodes:** never change the message. Code 128 gets a preview warning: Apple Watch can't display it. EAN-13, Code 39, Codabar and ITF get one too: Wallet shows them on iOS 27 and later.
 
 ## 4. Mapping to pass.json (`src/lib/pass/`)
 
@@ -100,7 +100,7 @@ Write pure functions such as `mapToPassJson(pass: NormalizedPass, config: PassCo
 | `description` | `description` ?? generated: "Event ticket for {title}", "Boarding pass from {from} to {to}", "Loyalty card for {title}", "Coupon from {organization ?? title}", "Pass for {title}" |
 | `logoText` | `organization ?? title` |
 | `backgroundColor`, `foregroundColor`, `labelColor` | `"rgb(r, g, b)"` strings from the normalized style |
-| `barcodes` | `[{ format, message, messageEncoding, altText }]`. Formats: qr → `PKBarcodeFormatQR`, pdf417 → `PKBarcodeFormatPDF417`, aztec → `PKBarcodeFormatAztec`, code128 → `PKBarcodeFormatCode128`. `messageEncoding`: `"iso-8859-1"`, or `"utf-8"` if the message has characters outside Latin-1 |
+| `barcodes` | `[{ format, message, messageEncoding, altText }]`. Formats: qr → `PKBarcodeFormatQR`, pdf417 → `PKBarcodeFormatPDF417`, aztec → `PKBarcodeFormatAztec`, code128 → `PKBarcodeFormatCode128`, ean13 → `PKBarcodeFormatEAN13`, code39 → `PKBarcodeFormatCode39`, codabar → `PKBarcodeFormatCodabar`, itf → `PKBarcodeFormatI2of5` (the last four need iOS 27). `messageEncoding`: `"iso-8859-1"`, or `"utf-8"` if the message has characters outside Latin-1 |
 | `relevantDates` | relevance window (§4.3), iOS 18+ |
 | `relevantDate` | `start`. Deprecated since iOS 18, but keeps iOS 17 and earlier working |
 | `expirationDate` | `expires`. For eventTicket and boardingPass without `expires`: `(end ?? start)` + 6 hours |
@@ -217,12 +217,12 @@ The owner does steps 1 to 3 in the Apple Developer website and Keychain Access o
 
 ## 7. Barcode helper (M3, browser only)
 
-- Drop or choose an image (screenshot or photo) and decode it in the browser with `@zxing/browser`. Formats: QR, PDF417, Aztec, Code 128.
+- Drop or choose an image (screenshot or photo) and decode it in the browser with ZXing (`@zxing/library`, D15). Formats: QR, PDF417, Aztec, Code 128, and from schema v1.1 EAN-13, Code 39, Codabar and ITF.
 - Show the decoded text and format. The user taps **Use this code** to accept it. If several codes are found, list them all.
 - If the JSON already has a different barcode, show both and make the user choose.
 - Manual entry is allowed, with a warning that one typo makes the pass unusable at the door.
 - Images never leave the device.
-- iOS 27 adds EAN-13, Code 39, Codabar and ITF barcodes to Wallet. Add them in schema v1.1 after confirming their exact pass.json format strings and minimum iOS version.
+- iOS 27 adds EAN-13, Code 39, Codabar and ITF barcodes to Wallet. Schema v1.1 adds them, with format strings checked in Apple's docs (D15, D17).
 
 ## 8. Add to calendar (M4)
 

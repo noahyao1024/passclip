@@ -1,4 +1,5 @@
 import { DateTime, IANAZone } from "luxon";
+import { FORMAT_NAMES, IOS_27_FORMATS } from "../barcode/formats";
 import { normalizeColors, type ResolvedStyle } from "../pass/colors";
 import type { ImportError, Warning } from "./notices";
 import type { Pass, PassclipImport } from "./types";
@@ -128,6 +129,9 @@ export function normalizeImport(input: PassclipImport, options: NormalizeOptions
       normalized.transit = { ...pass.transit, boardingTime: normalizeTime(pass.transit.boardingTime, "boarding time", { departureZone: true }) };
     }
     if (pass.membership?.since && !validDate(pass.membership.since)) invalidDate("member since date");
+    if (pass.barcode && IOS_27_FORMATS.has(pass.barcode.format)) {
+      warnings.push({ pass: index, message: `Wallet shows ${FORMAT_NAMES[pass.barcode.format]} barcodes on iOS 27 and later. On older iPhones the pass has no barcode.` });
+    }
     if (pass.barcode?.format === "code128") {
       warnings.push({ pass: index, message: "Apple Watch can't display Code 128 barcodes. Use this pass on your iPhone." });
     }

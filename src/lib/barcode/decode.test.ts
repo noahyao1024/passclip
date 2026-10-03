@@ -4,10 +4,13 @@ import { describe, expect, it } from "vitest";
 import { decodeBarcodes, type Pixels } from "./decode";
 
 // Real images made with the same encoder library the preview uses, read back by the decoder.
-const BCIDS = { qr: "qrcode", pdf417: "pdf417", aztec: "azteccode", code128: "code128" } as const;
+const BCIDS = {
+  qr: "qrcode", pdf417: "pdf417", aztec: "azteccode", code128: "code128",
+  ean13: "ean13", code39: "code39", codabar: "rationalizedCodabar", itf: "interleaved2of5",
+} as const;
 
 async function render(format: keyof typeof BCIDS, text: string): Promise<PNG> {
-  const buffer = await bwipjs.toBuffer({ bcid: BCIDS[format], text, scale: 3, padding: 10, backgroundcolor: "FFFFFF", ...(format === "code128" ? { height: 15 } : {}) });
+  const buffer = await bwipjs.toBuffer({ bcid: BCIDS[format], text, scale: 3, padding: 10, backgroundcolor: "FFFFFF", ...(["code128", "ean13", "code39", "codabar", "itf"].includes(format) ? { height: 15 } : {}) });
   return PNG.sync.read(buffer);
 }
 
@@ -39,6 +42,10 @@ describe("decodeBarcodes", () => {
     ["pdf417", BOARDING],
     ["aztec", "R-55120 Tokyo-Kyoto car 7"],
     ["code128", "778122094410"],
+    ["ean13", "4006381333931"],
+    ["code39", "PC-12345"],
+    ["codabar", "A40156B"],
+    ["itf", "12345678"],
   ] as const)("reads a %s code exactly", async (format, text) => {
     expect(decodeBarcodes(compose([await render(format, text)]))).toEqual([{ format, message: text }]);
   });

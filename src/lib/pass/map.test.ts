@@ -11,7 +11,7 @@ const fixture = (name: string) => {
   return result.value;
 };
 describe("mapToPassJson", () => {
-  for (const name of ["event-tickets", "flight", "train-local-time", "loyalty-card", "coupon", "gym-membership"]) {
+  for (const name of ["event-tickets", "flight", "train-local-time", "loyalty-card", "coupon", "gym-membership", "grocery-card"]) {
     it(`maps ${name} with the exact preview fields`, () => {
       const { passes, source } = fixture(name);
       const pass = passes[0];
@@ -32,6 +32,17 @@ describe("mapToPassJson", () => {
     expect(Date.parse(mapped.expirationDate!)).toBe(Date.parse(pass.end!) + 6 * 3600000);
     expect(Date.parse(mapped.relevantDates![0].startDate)).toBe(Date.parse(pass.transit!.boardingTime!) - 3 * 3600000);
     expect(Date.parse(mapped.relevantDates![0].endDate)).toBe(Date.parse(pass.start!) + 3600000);
+  });
+  it("uses Apple's format strings for every barcode type, including iOS 27's", () => {
+    const pass = fixture("loyalty-card").passes[0];
+    const expected = {
+      qr: "PKBarcodeFormatQR", pdf417: "PKBarcodeFormatPDF417", aztec: "PKBarcodeFormatAztec", code128: "PKBarcodeFormatCode128",
+      ean13: "PKBarcodeFormatEAN13", code39: "PKBarcodeFormatCode39", codabar: "PKBarcodeFormatCodabar", itf: "PKBarcodeFormatI2of5",
+    } as const;
+    for (const [format, apple] of Object.entries(expected)) {
+      const mapped = mapToPassJson({ ...pass, barcode: { format: format as keyof typeof expected, message: "12345678" } }, config);
+      expect(mapped.barcodes).toEqual([{ format: apple, message: "12345678", messageEncoding: "iso-8859-1" }]);
+    }
   });
   it("uses UTF-8 only when the exact barcode data needs it", () => {
     const pass = fixture("loyalty-card").passes[0];
