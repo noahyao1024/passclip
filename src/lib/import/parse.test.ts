@@ -25,7 +25,7 @@ describe("recoverable examples (examples/README.md)", () => {
   it("single-pass-root.json: wraps a single pass in the import format", () => {
     const result = parsed(parseImportText(fixture("single-pass-root.json")));
     expect(messages(result)).toEqual(["The JSON was a single pass, so Passclip wrapped it in the import format."]);
-    expect(result.data).toMatchObject({ schemaVersion: "1.0", passes: [{ type: "coupon", title: "Corner Bakery" }] });
+    expect(result.data).toMatchObject({ schemaVersion: "1.1", passes: [{ type: "coupon", title: "Corner Bakery" }] });
   });
 
   it("curly-quotes.txt: replaces curly quotes, then parses", () => {
@@ -38,9 +38,9 @@ describe("recoverable examples (examples/README.md)", () => {
     const result = parsed(parseImportText(fixture("trailing-comma-no-version.txt")));
     expect(messages(result)).toEqual([
       "Removed commas that came right before a } or ].",
-      'Added the missing "schemaVersion": "1.0".',
+      'Added the missing "schemaVersion": "1.1".',
     ]);
-    expect(result.data).toMatchObject({ schemaVersion: "1.0", passes: [{ title: "Harbor Parking" }] });
+    expect(result.data).toMatchObject({ schemaVersion: "1.1", passes: [{ title: "Harbor Parking" }] });
   });
 
   it("unknown-keys.json: parses as-is (validation removes the unknown keys)", () => {
@@ -75,7 +75,7 @@ describe("parseImportText", () => {
   it("wraps a list of passes", () => {
     const result = parsed(parseImportText('[{"type": "generic", "title": "A"}, {"type": "generic", "title": "B"}]'));
     expect(messages(result)).toEqual(["The JSON was a list of passes, so Passclip wrapped it in the import format."]);
-    expect(result.data).toMatchObject({ schemaVersion: "1.0", passes: [{ title: "A" }, { title: "B" }] });
+    expect(result.data).toMatchObject({ schemaVersion: "1.1", passes: [{ title: "A" }, { title: "B" }] });
   });
 
   it("leaves commas and curly quotes inside text values alone", () => {
@@ -84,7 +84,7 @@ describe("parseImportText", () => {
     );
     expect(messages(result)).toEqual([
       "Removed commas that came right before a } or ].",
-      'Added the missing "schemaVersion": "1.0".',
+      'Added the missing "schemaVersion": "1.1".',
     ]);
     expect(result.data).toMatchObject({ passes: [{ title: "The “Big” Show", notes: "a, ]" }] });
   });

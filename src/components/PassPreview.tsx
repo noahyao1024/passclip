@@ -4,6 +4,7 @@ import { useEffect, useId, useState, type CSSProperties } from "react";
 import type { NormalizedPass } from "../lib/import/normalize";
 import type { Barcode } from "../lib/import/types";
 import type { PassField, PassLayout } from "../lib/pass/fields";
+import { FORMAT_NAMES } from "@/lib/barcode/formats";
 import { renderBarcode, type BarcodeImage } from "./barcode-preview";
 import { fieldLink, formatFieldValue } from "./preview-fields";
 
@@ -113,7 +114,7 @@ export function PassPreview({ pass, layout }: PassPreviewProps) {
                   src={barcode.result.image.src}
                   width={barcode.result.image.width}
                   height={barcode.result.image.height}
-                  alt={`${pass.barcode.format === "qr" ? "QR code" : pass.barcode.format === "aztec" ? "Aztec barcode" : pass.barcode.format === "pdf417" ? "PDF417 barcode" : "Code 128 barcode"} for this pass`}
+                  alt={`${FORMAT_NAMES[pass.barcode.format]} for this pass`}
                   onLoad={barcode.loaded}
                   onError={barcode.failed}
                 />

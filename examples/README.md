@@ -11,6 +11,7 @@ Every file here must pass schema validation as-is (`npm run validate:examples` c
 | `loyalty-card.json` | Store card with points, Code 128 barcode (preview should warn it won't show on Apple Watch), custom colors |
 | `coupon.json` | Coupon with promo code, date-only `expires` (normalizes to 23:59:59 local that day), no barcode |
 | `gym-membership.json` | Generic pass with membership, `extraFields`, attachment |
+| `grocery-card.json` | Schema 1.1: store card with an EAN-13 barcode (needs iOS 27 in Wallet; preview warns), a balance, and only a background color |
 
 ## Recoverable (`examples/recoverable/`)
 Not valid as-is. The lenient parser must recover each one **and show a warning for every fix**.

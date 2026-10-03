@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.1",
+  "source": {
+    "kind": "email",
+    "sender": "rewards@greengrocer.example",
+    "subject": "Your Green Grocer card is ready"
+  },
+  "passes": [
+    {
+      "type": "storeCard",
+      "title": "Green Grocer Card",
+      "organization": "Green Grocer",
+      "holderName": "Aiko Tanaka",
+      "membership": {
+        "programName": "Green Grocer Card",
+        "memberId": "4006381333931",
+        "balance": { "amount": 12.5, "currency": "EUR" }
+      },
+      "barcode": { "format": "ean13", "message": "4006381333931", "altText": "4006381333931" },
+      "style": { "backgroundColor": "#2E5E3A" }
+    }
+  ]
+}

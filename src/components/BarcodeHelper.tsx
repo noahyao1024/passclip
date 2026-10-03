@@ -2,13 +2,13 @@
 
 import { useId, useRef, useState } from "react";
 import type { DecodedCode } from "@/lib/barcode/decode";
+import { FORMAT_NAMES } from "@/lib/barcode/formats";
 import { MAX_IMAGE_BYTES, readImagePixels } from "@/lib/barcode/image";
 import type { Barcode } from "@/lib/import/types";
 
 // Barcode helper (docs/SPEC.md §7): read codes from a screenshot on this device, or type one.
 // Nothing is used until the person taps a button (CLAUDE.md rule 3).
 
-const FORMAT_NAMES: Record<Barcode["format"], string> = { qr: "QR code", pdf417: "PDF417", aztec: "Aztec", code128: "Code 128" };
 
 type ReadState =
   | { kind: "idle" }

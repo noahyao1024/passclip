@@ -95,11 +95,11 @@ describe("messages", () => {
     ],
     [pass({ type: "boardingPass", title: "A", transit: { mode: "air", to: { code: "CDG" } } }), "Pass 1 is missing departure (transit.from)."],
     [pass({ type: "boardingPass", title: "A", transit: { mode: "air", carrierCode: "zq", from: { code: "HND" }, to: { code: "CDG" } } }), "Pass 1: airline code must be the 2- or 3-character airline code in capitals, like NH."],
-    [{ schemaVersion: "2.0", passes: [] }, '"schemaVersion" must be "1.0", the only format version Passclip reads.'],
+    [{ schemaVersion: "2.0", passes: [] }, '"schemaVersion" must be "1.1" or "1.0", the format versions Passclip reads.'],
     [{ schemaVersion: "1.0" }, 'The JSON needs a list of passes, like "passes": [ ... ]. Use the format from the AI prompt.'],
     [{ schemaVersion: "1.0", passes: {} }, "Passes must be a list in square brackets [ ]."],
     [{ schemaVersion: "1.0", passes: ["ticket"] }, "Pass 1 must be a group of fields in curly braces { }, with at least a type and a title."],
-    [["not", "an", "import"], 'The JSON must be a group of fields in curly braces, like { "schemaVersion": "1.0", "passes": [ ... ] }.'],
+    [["not", "an", "import"], 'The JSON must be a group of fields in curly braces, like { "schemaVersion": "1.1", "passes": [ ... ] }.'],
     [{ schemaVersion: "1.0", passes: [], source: { sender: 42 } }, "Source sender must be text in double quotes."],
     [
       { schemaVersion: "1.0", passes: Array.from({ length: 21 }, () => ({ type: "generic", title: "A" })) },
@@ -109,8 +109,17 @@ describe("messages", () => {
     expect(errors(validateImport(data))).toEqual([message]);
   });
 
+  it("reads the iOS 27 barcode types in 1.1 files, and leniently in 1.0 files too", () => {
+    for (const schemaVersion of ["1.1", "1.0"]) {
+      for (const format of ["ean13", "code39", "codabar", "itf"]) {
+        const result = validateImport({ schemaVersion, passes: [{ type: "storeCard", title: "Card", barcode: { format, message: "12345678" } }] });
+        expect(result).toMatchObject({ ok: true, warnings: [] });
+      }
+    }
+  });
+
   it("accepts every valid example as-is, without warnings", () => {
-    for (const name of ["coupon", "event-tickets", "flight", "gym-membership", "loyalty-card", "train-local-time"]) {
+    for (const name of ["coupon", "event-tickets", "flight", "gym-membership", "loyalty-card", "train-local-time", "grocery-card"]) {
       expect(validateImport(read(`examples/${name}.json`))).toMatchObject({ ok: true, warnings: [] });
     }
   });

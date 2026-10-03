@@ -21,7 +21,7 @@ describe("signed pass package", () => {
     signing = { passTypeIdentifier: "pass.com.example.test", teamIdentifier: "ABCDE12345", signerCertPem: readFileSync(path.join(dir, "signer.pem"), "utf8"), signerKeyPem: readFileSync(path.join(dir, "signer.key"), "utf8"), wwdrCertPem: readFileSync(path.join(dir, "ca.pem"), "utf8") };
   });
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
-  it.each(["event-tickets", "flight", "train-local-time", "loyalty-card", "coupon", "gym-membership"])("packages %s and verifies every manifest hash and detached signature", async (name) => {
+  it.each(["event-tickets", "flight", "train-local-time", "loyalty-card", "coupon", "gym-membership", "grocery-card"])("packages %s and verifies every manifest hash and detached signature", async (name) => {
     const result = processImport(readFileSync(`examples/${name}.json`, "utf8"), { fallbackTimeZone: "Asia/Tokyo" });
     if (!result.ok) throw new Error("Invalid fixture");
     const buffer = await buildPass(result.value.passes[0], signing, { source: result.value.source });

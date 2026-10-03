@@ -196,6 +196,15 @@ describe("normalization notices and input integrity", () => {
     expect(result.warnings).toEqual([{ pass: 0, message: expect.stringContaining("Apple Watch can't display Code 128") }]);
   });
 
+  it("says which barcode types need iOS 27, without changing the data", () => {
+    for (const [format, name] of [["ean13", "EAN-13"], ["code39", "Code 39"], ["codabar", "Codabar"], ["itf", "ITF"]] as const) {
+      const result = success(normalizeImport(data({ barcode: { format, message: "A40156B" } })));
+      expect(result.value.passes[0].barcode?.message).toBe("A40156B");
+      expect(result.warnings).toEqual([{ pass: 0, message: `Wallet shows ${name} barcodes on iOS 27 and later. On older iPhones the pass has no barcode.` }]);
+    }
+    expect(success(normalizeImport(data({ barcode: { format: "qr", message: "X" } }))).warnings).toEqual([]);
+  });
+
   it("doesn't mutate input objects when normalizing dates, zones or colors", () => {
     const input = data({ start: "2026-11-01T12:00", style: { backgroundColor: "#ffffff", foregroundColor: "#eeeeee" } });
     const before = structuredClone(input);

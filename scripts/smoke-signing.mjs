@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import net from "node:net";
@@ -28,7 +28,9 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   assert(ready, "The test server did not become ready.");
-  for (const name of ["event-tickets", "flight", "train-local-time", "loyalty-card", "coupon", "gym-membership"]) {
+  // Every valid example, so new fixtures are covered automatically.
+  const names = readdirSync("examples").filter((file) => file.endsWith(".json")).map((file) => file.replace(/\.json$/, ""));
+  for (const name of names) {
     const text = readFileSync(`examples/${name}.json`, "utf8");
     const imported = await fetch(base + "/api/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, fallbackTimeZone: "Asia/Tokyo" }) });
     assert.equal(imported.status, 200); const result = await imported.json();
@@ -52,7 +54,7 @@ try {
   assert.equal(formResponse.status(), 200, `Browser form returned HTTP ${formResponse.status()}`);
   const fileDownload = await download; assert(fileDownload, "The browser did not download a pass."); assert.match(fileDownload.suggestedFilename(), /\.pkpass$/);
   assert.equal(await fileDownload.failure(), null); assert.equal(errors.length, 0);
-  console.log("Signing smoke passed: six native preview/sign requests and one real browser form download; temporary test certificates only.");
+  console.log(`Signing smoke passed: ${names.length} native preview/sign requests and one real browser form download; temporary test certificates only.`);
 } finally {
   await browser?.close();
   if (server && server.exitCode === null) {

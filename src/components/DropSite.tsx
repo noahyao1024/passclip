@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import eventTickets from "../../examples/event-tickets.json";
 import { processImport } from "@/lib/import/process";
-import { MAX_INPUT_BYTES } from "@/lib/import/parse";
+import { MAX_INPUT_BYTES, SCHEMA_VERSION } from "@/lib/import/parse";
 import type { Warning } from "@/lib/import/notices";
 import { layoutPass } from "@/lib/pass/fields";
 import type { DecodedCode } from "@/lib/barcode/decode";
@@ -136,7 +136,7 @@ export default function DropSite({ prompt, walletAvailable = false, development 
         <div className="drop-heading"><div><p className="step-caption">Your reply goes here</p><h2 id="drop-title">Drop the details.</h2></div><span className="local-badge">Stays in your browser</span></div>
         <label htmlFor="import-text" className="input-label">Paste the JSON from your AI chat</label>
         <textarea id="import-text" ref={textarea} spellCheck={false} autoCapitalize="off" autoCorrect="off" value={text}
-          placeholder={'{\n  "schemaVersion": "1.0",\n  "passes": [ ... ]\n}'}
+          placeholder={`{\n  "schemaVersion": "${SCHEMA_VERSION}",\n  "passes": [ ... ]\n}`}
           onChange={(event) => changeText(event.target.value)} aria-describedby="input-help"
           aria-invalid={Boolean(result && !result.ok)} />
         <div className="drop-actions"><button className="button button-secondary" onClick={() => fileInput.current?.click()}>Choose file</button><span id="input-help">or drop a .json or .txt file · up to 256 KB</span></div>
@@ -171,7 +171,7 @@ export default function DropSite({ prompt, walletAvailable = false, development 
           const warnings = [...result.warnings.filter((warning) => warning.pass === index), ...layout.warnings];
           const { needsTimeZone: _needsTimeZone, ...payload } = pass;
           void _needsTimeZone;
-          const importText = JSON.stringify({ schemaVersion: "1.0", source: result.value.source, passes: [payload] });
+          const importText = JSON.stringify({ schemaVersion: SCHEMA_VERSION, source: result.value.source, passes: [payload] });
           return <article className="pass-result" key={`${index}-${pass.type}`}><div className="pass-result-heading"><span>Pass {index + 1}</span><h3>{pass.title}</h3></div><PassPreview pass={pass} layout={layout} /><Warnings warnings={warnings} /><BarcodeHelper key={`${index}-${pass.barcode?.format}-${pass.barcode?.message}`} current={pass.barcode} onUse={(code) => applyBarcode(index, code)} /><div className="pass-actions">{walletAvailable && <AddToWallet importText={importText} fallbackTimeZone={pass.timeZone ?? "UTC"} />}{offersCalendar(pass) && <AddToCalendar importText={importText} fallbackTimeZone={pass.timeZone ?? "UTC"} />}{development && <button className="text-button" onClick={async () => {
             const { mapToPassJson } = await import("@/lib/pass/map");
             const json = mapToPassJson(pass, { passTypeIdentifier: "pass.preview.unconfigured", teamIdentifier: "UNCONFIGURED", serialNumber: crypto.randomUUID(), source: result.value.source });

@@ -2,8 +2,12 @@ import {
   AztecCodeReader,
   BarcodeFormat,
   BinaryBitmap,
+  CodaBarReader,
   Code128Reader,
+  Code39Reader,
   DecodeHintType,
+  EAN13Reader,
+  ITFReader,
   HybridBinarizer,
   PDF417Reader,
   QRCodeReader,
@@ -33,10 +37,17 @@ const FORMATS = new Map<BarcodeFormat, Barcode["format"]>([
   [BarcodeFormat.PDF_417, "pdf417"],
   [BarcodeFormat.AZTEC, "aztec"],
   [BarcodeFormat.CODE_128, "code128"],
+  [BarcodeFormat.EAN_13, "ean13"],
+  [BarcodeFormat.CODE_39, "code39"],
+  [BarcodeFormat.CODABAR, "codabar"],
+  [BarcodeFormat.ITF, "itf"],
 ]);
+const LINEAR = new Set([BarcodeFormat.CODE_128, BarcodeFormat.EAN_13, BarcodeFormat.CODE_39, BarcodeFormat.CODABAR, BarcodeFormat.ITF]);
 const HINTS = new Map<DecodeHintType, unknown>([
   [DecodeHintType.POSSIBLE_FORMATS, [...FORMATS.keys()]],
   [DecodeHintType.TRY_HARDER, true],
+  // Keep Codabar's start and stop letters: they're part of the code's data.
+  [DecodeHintType.RETURN_CODABAR_START_END, true],
 ]);
 const MAX_CODES = 6;
 
@@ -53,7 +64,16 @@ function luminance({ width, height, data }: Pixels, invert: boolean): Uint8Clamp
 
 // One reader per format, tried in turn. (ZXing's combined reader prints a console warning for
 // every format it doesn't find.)
-const READERS: Reader[] = [new QRCodeReader(), new PDF417Reader(), new AztecCodeReader(), new Code128Reader()];
+const READERS: Reader[] = [
+  new QRCodeReader(),
+  new PDF417Reader(),
+  new AztecCodeReader(),
+  new Code128Reader(),
+  new EAN13Reader(),
+  new Code39Reader(),
+  new CodaBarReader(),
+  new ITFReader(),
+];
 
 function decodeOnce(gray: Uint8ClampedArray, width: number, height: number): Result | undefined {
   const bitmap = new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(gray, width, height)));
@@ -77,7 +97,7 @@ function blankOut(gray: Uint8ClampedArray, width: number, height: number, result
   const ys = points.map((point) => point.getY());
   let [left, right, top, bottom] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
   const size = Math.max(right - left, bottom - top);
-  if (result.getBarcodeFormat() === BarcodeFormat.CODE_128) {
+  if (LINEAR.has(result.getBarcodeFormat())) {
     // A 1D code reports points along one scan line: cover its likely height too.
     const margin = Math.max(10, (right - left) * 0.1);
     [left, right, top, bottom] = [left - margin, right + margin, top - (right - left) * 0.6, bottom + (right - left) * 0.6];
@@ -197,7 +217,7 @@ function decodeImage(gray: Uint8ClampedArray, width: number, height: number): De
     .map(({ format, message }) => ({ format, message }));
 }
 
-/** Finds every QR, PDF417, Aztec and Code 128 code in the image, light or dark. */
+/** Finds every supported code in the image (2D codes and bar codes), light or dark. */
 export function decodeBarcodes(pixels: Pixels): DecodedCode[] {
   const found = decodeImage(luminance(pixels, false), pixels.width, pixels.height);
   // Dark-mode screenshots often show a light code on a dark background.

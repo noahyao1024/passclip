@@ -18,7 +18,20 @@ describe("local barcode previews", () => {
     expect(svg).not.toMatch(/<script|<foreignObject|<image|href=/);
   });
 
-  it.each<Barcode["format"]>(["qr", "pdf417", "aztec", "code128"])("preserves leading/trailing spaces and literal escape syntax in %s data", async (format) => {
+  // The iOS 27 types only allow certain characters, so each gets a realistic message.
+  it.each<[Barcode["format"], string]>([
+    ["ean13", "4006381333931"],
+    ["code39", "PC-12345"],
+    ["codabar", "A40156B"],
+    ["itf", "12345678"],
+  ])("renders a real %s encoder for %s", async (format, message) => {
+    const image = await renderBarcode({ format, message });
+    const svg = decodeURIComponent(image.src.slice(image.src.indexOf(",") + 1));
+    expect(svg).toContain("<path");
+    expect(image.width).toBeGreaterThan(image.height);
+  });
+
+  it.each(["qr", "pdf417", "aztec", "code128"] as const)("preserves leading/trailing spaces and literal escape syntax in %s data", async (format) => {
     const original = { format, message: "  PC^123^FNC1  " };
     const names = { qr: "qrcode", pdf417: "pdf417", aztec: "azteccode", code128: "code128" } as const;
     const encoder = vi.mocked(encoders[names[format]]);

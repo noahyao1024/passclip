@@ -163,7 +163,7 @@ function describe(error: ErrorObject): ImportError {
 
   if (field.length === 0) {
     if (pass === undefined && error.keyword === "type") {
-      return withPass('The JSON must be a group of fields in curly braces, like { "schemaVersion": "1.0", "passes": [ ... ] }.');
+      return withPass('The JSON must be a group of fields in curly braces, like { "schemaVersion": "1.1", "passes": [ ... ] }.');
     }
     if (pass !== undefined && error.keyword === "type") {
       return withPass(`${subject} must be a group of fields in curly braces { }, with at least a type and a title.`);
@@ -174,7 +174,7 @@ function describe(error: ErrorObject): ImportError {
     return withPass(`An import can have ${String(params.limit)} passes at most. Split the JSON into smaller imports.`);
   }
   if (pass === undefined && field.length === 1 && field[0] === "schemaVersion") {
-    return withPass(`"schemaVersion" must be "1.0", the only format version Passclip reads.`);
+    return withPass(`"schemaVersion" must be "1.1" or "1.0", the format versions Passclip reads.`);
   }
   if (pass !== undefined && field.length === 1 && field[0] === "type" && error.keyword === "enum") {
     return withPass(`${subject}: type must be ${PASS_TYPES}.`);

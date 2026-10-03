@@ -2,14 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://passclip.example/schema/passclip-import.v1.schema.json",
   "title": "Passclip Import",
-  "description": "Structured data that Passclip turns into Apple Wallet passes. Usually produced by an AI model using prompts/extract-to-passclip.txt, or written by hand. Version 1.0.",
+  "description": "Structured data that Passclip turns into Apple Wallet passes. Usually produced by an AI model using prompts/extract-to-passclip.txt, or written by hand. Version 1.1; version 1.0 documents are read too.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "passes"],
   "properties": {
     "schemaVersion": {
-      "description": "Format version. Always \"1.0\" for this schema.",
-      "const": "1.0"
+      "description": "Format version: \"1.1\" (adds the ean13, code39, codabar and itf barcode types), or \"1.0\".",
+      "enum": ["1.1", "1.0"]
     },
     "source": { "$ref": "#/$defs/source" },
     "passes": {
@@ -278,7 +278,10 @@
       "additionalProperties": false,
       "required": ["format", "message"],
       "properties": {
-        "format": { "enum": ["qr", "pdf417", "aztec", "code128"] },
+        "format": {
+          "description": "The type of code. ean13, code39, codabar and itf show in Wallet on iOS 27 and later.",
+          "enum": ["qr", "pdf417", "aztec", "code128", "ean13", "code39", "codabar", "itf"]
+        },
         "message": {
           "description": "The exact data inside the code. Must come from the source text or a real scan, never invented.",
           "type": "string", "minLength": 1, "maxLength": 2000
