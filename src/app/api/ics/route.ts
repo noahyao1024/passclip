@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { buildIcs, calendarEventFor } from "@/lib/calendar/ics";
 import type { NormalizedPass } from "@/lib/import/normalize";
 import { fileSlug } from "@/lib/server/filename";
-import { allowRequest, apiError, readImportRequest, RequestProblem } from "@/lib/server/import-request";
+import { allowRequest, apiError, errorResponse, readImportRequest, RequestProblem } from "@/lib/server/import-request";
 
 // Add to calendar (docs/SPEC.md §8): reached by a real form navigation, like Wallet passes,
 // and needs no signing. Nothing is stored or logged.
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   try {
     if (!allowRequest(request)) throw new RequestProblem("Too many requests. Wait a minute and try again.", 429);
     const { result, index } = await readImportRequest(request);
-    if (!result.ok) return Response.json({ errors: result.errors }, { status: 400, headers: { "Cache-Control": "no-store" } });
+    if (!result.ok) return errorResponse(request, result.errors, 400);
     const pass = result.value.passes[index];
     if (!pass) throw new RequestProblem("Choose a pass from your import.");
     const event = calendarEventFor(pass);
@@ -44,6 +44,6 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    return apiError(error);
+    return apiError(error, request);
   }
 }
