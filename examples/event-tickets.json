@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "1.0",
+  "source": {
+    "kind": "email",
+    "sender": "tickets@bluelantern.example",
+    "subject": "Your tickets: Jazz Night at Blue Lantern Hall",
+    "receivedAt": "2026-10-01T09:12:00+09:00"
+  },
+  "passes": [
+    {
+      "type": "eventTicket",
+      "title": "Jazz Night",
+      "subtitle": "Autumn Session",
+      "organization": "Blue Lantern Hall",
+      "holderName": "Aiko Tanaka",
+      "confirmationCode": "BL-48213",
+      "ticketNumber": "BL48213-01",
+      "start": "2026-11-14T19:30:00+09:00",
+      "end": "2026-11-14T22:00:00+09:00",
+      "timeZone": "Asia/Tokyo",
+      "venue": {
+        "name": "Blue Lantern Hall",
+        "address": "2-1 Example-dori, Minato-ku",
+        "city": "Tokyo",
+        "country": "Japan"
+      },
+      "seat": { "section": "B", "row": "F", "number": "12", "entrance": "East door" },
+      "price": { "amount": 8800, "currency": "JPY" },
+      "barcode": { "format": "qr", "message": "BL48213-01-F12-20261114", "altText": "BL48213-01" },
+      "notes": "Doors open 18:30. One drink order required at the bar.",
+      "attachments": [
+        { "title": "Venue map", "url": "https://bluelantern.example/map.pdf", "kind": "pdf" }
+      ]
+    },
+    {
+      "type": "eventTicket",
+      "title": "Jazz Night",
+      "subtitle": "Autumn Session",
+      "organization": "Blue Lantern Hall",
+      "holderName": "Ken Sato",
+      "confirmationCode": "BL-48213",
+      "ticketNumber": "BL48213-02",
+      "start": "2026-11-14T19:30:00+09:00",
+      "end": "2026-11-14T22:00:00+09:00",
+      "timeZone": "Asia/Tokyo",
+      "venue": {
+        "name": "Blue Lantern Hall",
+        "address": "2-1 Example-dori, Minato-ku",
+        "city": "Tokyo",
+        "country": "Japan"
+      },
+      "seat": { "section": "B", "row": "F", "number": "13", "entrance": "East door" },
+      "price": { "amount": 8800, "currency": "JPY" },
+      "barcode": { "format": "qr", "message": "BL48213-02-F13-20261114", "altText": "BL48213-02" },
+      "notes": "Doors open 18:30. One drink order required at the bar.",
+      "attachments": [
+        { "title": "Venue map", "url": "https://bluelantern.example/map.pdf", "kind": "pdf" }
+      ]
+    }
+  ]
+}

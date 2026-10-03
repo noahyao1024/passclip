@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0",
+  "source": { "kind": "pdf", "subject": "Express train e-ticket" },
+  "passes": [
+    {
+      "type": "boardingPass",
+      "title": "Tokyo → Kyoto",
+      "organization": "Example Rail",
+      "holderName": "Aiko Tanaka",
+      "confirmationCode": "R-55120",
+      "start": "2026-11-20T08:03",
+      "end": "2026-11-20T10:18",
+      "timeZone": "Asia/Tokyo",
+      "transit": {
+        "mode": "train",
+        "carrier": "Example Rail",
+        "number": "Express 503",
+        "from": { "name": "Tokyo", "city": "Tokyo" },
+        "to": { "name": "Kyoto", "city": "Kyoto" },
+        "platform": "16",
+        "car": "7",
+        "cabin": "Reserved"
+      },
+      "seat": { "row": "12", "number": "D" },
+      "warnings": [
+        "The ticket shows local times only, so the times are for Asia/Tokyo.",
+        "No barcode text in the ticket. Scan the QR code in Passclip."
+      ]
+    }
+  ]
+}

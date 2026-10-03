@@ -1,0 +1,13 @@
+{
+  "passes": [
+    {
+      "type": "generic",
+      "title": "Harbor Parking",
+      "subtitle": "Monthly permit",
+      "expires": "2026-11-30",
+      "extraFields": [
+        { "label": "Level", "value": "B2" },
+      ],
+    },
+  ],
+}

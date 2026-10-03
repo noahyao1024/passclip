@@ -1,0 +1,18 @@
+Here is your JSON:
+
+```json
+{
+  "schemaVersion": "1.0",
+  "passes": [
+    {
+      "type": "generic",
+      "title": "City Library",
+      "subtitle": "Library card",
+      "holderName": "Aiko Tanaka",
+      "barcode": { "format": "code128", "message": "LIB0042117", "altText": "LIB0042117" }
+    }
+  ]
+}
+```
+
+Let me know if you need anything else!

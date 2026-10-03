@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0",
+  "source": {
+    "kind": "email",
+    "sender": "hello@northwind-books.example",
+    "subject": "20% off your next order"
+  },
+  "passes": [
+    {
+      "type": "coupon",
+      "title": "Northwind Books",
+      "organization": "Northwind Books",
+      "expires": "2026-12-31",
+      "offer": {
+        "headline": "20% off",
+        "code": "READMORE20",
+        "terms": "One use per customer. Not valid on gift cards. Online and in store."
+      },
+      "attachments": [
+        { "title": "Shop online", "url": "https://northwind-books.example/shop", "kind": "link" }
+      ]
+    }
+  ]
+}

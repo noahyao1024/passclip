@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0",
+  "passes": [
+    {
+      "type": "eventTicket",
+      "title": "Film Night",
+      "start": "14/11/2026 7:30pm",
+      "style": { "backgroundColor": "purple" }
+    }
+  ]
+}

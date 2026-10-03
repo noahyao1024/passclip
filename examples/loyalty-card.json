@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "source": { "kind": "screenshot" },
+  "passes": [
+    {
+      "type": "storeCard",
+      "title": "Bean & Leaf Rewards",
+      "organization": "Bean & Leaf Coffee",
+      "holderName": "Aiko Tanaka",
+      "membership": {
+        "programName": "Bean & Leaf Rewards",
+        "memberId": "7781 2209 4410",
+        "tier": "Gold",
+        "points": 1250
+      },
+      "barcode": { "format": "code128", "message": "778122094410", "altText": "7781 2209 4410" },
+      "style": { "backgroundColor": "#3B2A20", "foregroundColor": "#FFFFFF", "labelColor": "#E8C9A0" }
+    }
+  ]
+}

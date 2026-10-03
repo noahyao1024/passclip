@@ -1,0 +1,6 @@
+{
+  "type": "coupon",
+  "title": "Corner Bakery",
+  "offer": { "headline": "Free coffee with any pastry" },
+  "expires": "2026-11-30"
+}

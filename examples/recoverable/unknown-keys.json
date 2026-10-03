@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0",
+  "passes": [
+    {
+      "type": "eventTicket",
+      "title": "Spring Football Final",
+      "start": "2027-03-14T15:00:00+09:00",
+      "eventDate": "2027-03-14",
+      "color": "#0044AA",
+      "venue": { "name": "Example Stadium", "parking": "Lot C" },
+      "seat": { "section": "112", "row": "8", "number": "21" }
+    }
+  ]
+}

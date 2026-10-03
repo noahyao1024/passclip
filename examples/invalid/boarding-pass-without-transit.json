@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0",
+  "passes": [
+    {
+      "type": "boardingPass",
+      "title": "Tokyo → Paris",
+      "start": "2026-12-03T10:25:00+09:00",
+      "seat": { "number": "34K" }
+    }
+  ]
+}

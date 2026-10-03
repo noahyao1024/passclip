@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0",
+  "source": {
+    "kind": "email",
+    "sender": "members@ironleaf.example",
+    "subject": "Welcome to Ironleaf Gym"
+  },
+  "passes": [
+    {
+      "type": "generic",
+      "title": "Ironleaf Gym",
+      "subtitle": "Membership",
+      "organization": "Ironleaf Gym",
+      "holderName": "Aiko Tanaka",
+      "expires": "2027-10-31",
+      "membership": { "memberId": "IL-20931", "tier": "Off-peak", "since": "2026-10-01" },
+      "barcode": { "format": "qr", "message": "IL-20931", "altText": "IL-20931" },
+      "extraFields": [
+        { "label": "Home club", "value": "Shibuya" },
+        { "label": "Hours", "value": "Weekdays 10:00–16:00, weekends all day" }
+      ],
+      "attachments": [
+        { "title": "Class timetable", "url": "https://ironleaf.example/timetable.pdf", "kind": "pdf" }
+      ]
+    }
+  ]
+}

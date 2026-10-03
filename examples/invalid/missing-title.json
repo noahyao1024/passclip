@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "passes": [
+    {
+      "type": "eventTicket",
+      "start": "2026-11-14T19:30:00+09:00",
+      "venue": { "name": "Blue Lantern Hall" }
+    }
+  ]
+}

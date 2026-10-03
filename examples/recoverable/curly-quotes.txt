@@ -1,0 +1,12 @@
+{
+  “schemaVersion”: “1.0”,
+  “passes”: [
+    {
+      “type”: “eventTicket”,
+      “title”: “Film Night”,
+      “start”: “2026-11-21T18:00:00+09:00”,
+      “venue”: { “name”: “Riverside Cinema” },
+      “seat”: { “row”: “H”, “number”: “7” }
+    }
+  ]
+}

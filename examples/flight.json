@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0",
+  "source": {
+    "kind": "email",
+    "sender": "checkin@skylane.example",
+    "subject": "Your boarding pass: ZQ 101 Tokyo Haneda to Paris"
+  },
+  "passes": [
+    {
+      "type": "boardingPass",
+      "title": "Tokyo → Paris",
+      "organization": "Skylane Air",
+      "holderName": "TANAKA/AIKO MS",
+      "confirmationCode": "Q7XK2P",
+      "ticketNumber": "999-2401234567",
+      "start": "2026-12-03T10:25:00+09:00",
+      "end": "2026-12-03T16:40:00+01:00",
+      "timeZone": "Asia/Tokyo",
+      "transit": {
+        "mode": "air",
+        "carrier": "Skylane Air",
+        "carrierCode": "ZQ",
+        "number": "ZQ 101",
+        "from": { "code": "HND", "name": "Tokyo Haneda", "city": "Tokyo", "terminal": "3" },
+        "to": { "code": "CDG", "name": "Paris Charles de Gaulle", "city": "Paris", "terminal": "2E" },
+        "boardingTime": "2026-12-03T09:45:00+09:00",
+        "gate": "112",
+        "boardingGroup": "3",
+        "cabin": "Economy"
+      },
+      "seat": { "number": "34K" },
+      "barcode": {
+        "format": "pdf417",
+        "message": "M1TANAKA/AIKO MS EQ7XK2P HNDCDGZQ 0101 337Y034K0042 100",
+        "altText": "Q7XK2P"
+      },
+      "notes": "Bag drop closes 60 minutes before departure.",
+      "attachments": [
+        { "title": "Manage booking", "url": "https://skylane.example/manage/Q7XK2P", "kind": "link" }
+      ]
+    }
+  ]
+}
