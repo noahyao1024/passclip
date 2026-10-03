@@ -64,7 +64,7 @@ Copy everything in `prompts/extract-to-passclip.txt`, paste it into Claude, Chat
 
 ## Native iOS prototype and signing backend
 
-The SwiftUI app and Share Extension are under [`ios/`](ios/README.md). Generate the Xcode project on a Mac using the included XcodeGen specification; the macOS CI workflow builds and tests it. Native build/device acceptance remains pending.
+The SwiftUI app and Share Extension are under [`ios/`](ios/README.md). Generate the Xcode project on a Mac using the included XcodeGen specification. The [macOS CI build and simulator tests passed](https://github.com/noahyao1024/passclip/actions/runs/37100373720); real device acceptance remains pending.
 
 M2's backend exposes `/api/import` for native validation and `/api/pass` for signed Wallet downloads. The website enables its navigation form only when signing configuration passes inspection. Set `PUBLIC_BASE_URL` to the public site address when running behind a proxy. `npm run gen:images` refreshes placeholder art; after `npm run build`, `npm run smoke:signing` exercises all six examples and a real browser download using temporary test certificates. It requires OpenSSL, Python, a Chromium executable, and a free port 3101. Test certificates are never suitable for real Wallet passes.
 

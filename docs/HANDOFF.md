@@ -20,9 +20,11 @@ Continue on `milestone-1`. Read `CLAUDE.md`, `docs/SPEC.md`, `docs/DECISIONS.md`
 
 Synthetic certificates are never suitable for real Wallet passes. No real Apple signing variables were available. This Linux machine has no Swift, Xcode or iOS SDK, so native compilation and XCTest results must be obtained from the macOS workflow. Inspect its actual result; do not infer success from the workflow file.
 
+The [macOS CI run for `d1b39da`](https://github.com/noahyao1024/passclip/actions/runs/37100373720) passed: project generation, app/Share Extension build and the simulator XCTest command. This was verified from the run/job's public conclusions, not inferred from the workflow definition. Device acceptance is still pending.
+
 ## Remaining steps
 
-1. Inspect the macOS GitHub Actions build on `milestone-1`; resolve any generator/SDK/compiler/test failure. On a Mac generate with `xcodegen generate --spec ios/project.yml --project ios`, then open the Passclip scheme. Use your own bundle IDs/App Group/development team for a physical device; the example IDs are placeholders.
+1. Keep the macOS workflow passing after native changes. On a Mac generate with `xcodegen generate --spec ios/project.yml --project ios`, then open the Passclip scheme. Use your own bundle IDs/App Group/development team for a physical device; the example IDs are placeholders.
 2. Provide genuine Apple signing credentials securely on the server following `.env.example` and SPEC §6; never request values in chat or commit them. Set the canonical HTTPS `PUBLIC_BASE_URL`. Run `npm run check:env`, then verify every fixture adds to Wallet and scans on a real iPhone. Synthetic crypto tests do not establish Apple trust.
 3. Check the website on actual iPhone Safari: paste/files, clipboard, timezone picker, every preview, front/back/link taps, light/dark and narrow layout. Also check native import/share, Dynamic Type and VoiceOver.
 4. Verify current Apple pass image dimensions/semantic tags and obtain official website Wallet badge artwork. Apple documentation hosts were blocked by the runtime network policy, so semantics/final web badge were deferred rather than guessed. The native control comes from Apple's SDK. Necessary domains were saved in the environment draft, which does not itself apply runtime access. GitHub's public Actions page is readable; the API host was blocked.

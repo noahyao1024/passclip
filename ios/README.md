@@ -2,7 +2,7 @@
 
 SwiftUI application and Share Extension for iOS 17+. The app copies the same AI prompt as the website, accepts pasted text and UTF-8 JSON/text files, previews all five pass styles, renders barcodes locally, and presents Apple's native Add to Wallet sheet. The Share Extension accepts text or one JSON/text file from the share sheet and uses the same interface.
 
-This is a native prototype with a reviewable XcodeGen project specification. The Linux cloud machine cannot compile or run UIKit/SwiftUI. `.github/workflows/ios.yml` generates the Xcode project and runs the XCTest target on a macOS runner when these files are pushed. A saved workflow is not evidence of a successful native build; inspect that run and fix any SDK/compiler issues before using a device build.
+This is a native prototype with a reviewable XcodeGen project specification. The Linux cloud machine cannot compile or run UIKit/SwiftUI. `.github/workflows/ios.yml` generates the Xcode project and runs the XCTest target on a macOS runner when these files are pushed. The [first macOS build and simulator test run](https://github.com/noahyao1024/passclip/actions/runs/37100373720) passed for commit `d1b39da`; real device and Wallet acceptance remain pending.
 
 ## Open on a Mac
 
