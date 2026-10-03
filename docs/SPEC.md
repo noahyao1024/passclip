@@ -304,6 +304,8 @@ Work in order. Each milestone ends with tests passing and a short entry in `docs
 - Mapping functions with snapshot tests, placeholder images, `/api/pass` with passkit-generator, preview-only mode, the Add to Apple Wallet button.
 - Done when every valid example adds to Wallet on a real iPhone, fields and colors match the preview, and barcodes scan with another phone.
 
+**After M2: start the iOS app** (§15, decision D9). It signs passes through the M2 server. M3 to M6 stay in the plan, kept small, and are scheduled around the app.
+
 **M3: Barcode helper**
 - Done when sample QR, PDF417, Aztec and Code 128 images decode in Safari and Chrome, and nothing is uploaded.
 
@@ -335,7 +337,7 @@ Work in order. Each milestone ends with tests passing and a short entry in `docs
 ## 15. Later phases (don't build yet; keep the design ready for them)
 
 - **Email:** a personal forwarding address (an inbound-email service → extraction → passes). Optional Gmail or Outlook connection later; Gmail read access needs Google's app verification and a security assessment.
-- **iOS app (SwiftUI):** PassKit add flow, a Share Extension (selected text, PDFs and images from Mail, Safari and Photos), EventKit calendar events, widgets.
+- **iOS app (SwiftUI), next after M2:** PassKit add flow, a Share Extension (selected text, PDFs and images from Mail, Safari and Photos), EventKit calendar events, widgets. Passes are still signed on the server: the signing key never ships inside the app.
 - **Siri and Apple Intelligence:** from iOS 27, App Intents is the only way Siri reaches third-party apps (SiriKit is deprecated). Planned intents: "Add this ticket to Passclip", "Show my next pass", "What's attached to my flight?". Model passes as App Entities so Siri and Spotlight can find them.
 - **On-device extraction:** Apple's Foundation Models framework with a `@Generable` Swift type that mirrors this schema, replacing the copy-and-paste AI step.
 - **Pass updates:** `webServiceURL` and push notifications to update gates and times.

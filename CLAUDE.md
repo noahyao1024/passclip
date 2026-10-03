@@ -61,8 +61,14 @@ Keep these current:
 - `npm run dev`: start the site at http://localhost:3000
 - `npm run build`: production build
 - `npm test`: unit and contract tests, once; `npm run test:watch` re-runs them on every change
+- `npm run test:browser`: after `npm run build`, checks the production site in desktop/light and 360 px/dark Chromium. Uses system Chromium when available, or install it with `npx playwright install chromium`. Does not replace a real iPhone Safari check.
 - `npm run lint`: ESLint
 - `npm run typecheck`: generates Next's route types (`next typegen`), then runs `tsc --noEmit`
 - `npm run validate:examples`: check every `examples/*.json` against the schema (`npm test` covers the recoverable and invalid fixtures)
-- `npm run gen:types`: regenerate `src/lib/import/types.ts` from the schema. A test fails if you forget.
+- `npm run gen:types`: regenerate `src/lib/import/types.ts` and the precompiled validator (`schema-validator.generated.ts`) from the schema. A test fails if you forget.
 - `npm run check:env`: check the pass signing settings in `.env.local`. It exits with an error until they're set up.
+
+M2/native commands:
+- `npm run gen:images`: regenerate the committed neutral icon/logo model images.
+- `npm run smoke:signing`: after a production build, validate production native API calls and browser form downloads with temporary synthetic certificates (OpenSSL, Chromium; port 3101). Does not prove Apple trust.
+- `ios/README.md`: XcodeGen project generation, Mac build/tests and physical-device prerequisites.
