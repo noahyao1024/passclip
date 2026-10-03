@@ -57,7 +57,7 @@ struct ImportedData: Decodable {
     let source: JSONValue?
     func singlePassText(at index: Int) throws -> String {
         guard passes.indices.contains(index) else { throw ServiceError.invalidResponse }
-        var fields: [String: JSONValue] = ["schemaVersion": .string("1.0"), "passes": .array([passes[index].removing("needsTimeZone")])]
+        var fields: [String: JSONValue] = ["schemaVersion": .string("1.1"), "passes": .array([passes[index].removing("needsTimeZone")])]
         if let source { fields["source"] = source }
         return String(decoding: try JSONEncoder().encode(JSONValue.object(fields)), as: UTF8.self)
     }

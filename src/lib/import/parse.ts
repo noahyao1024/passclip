@@ -4,7 +4,8 @@ import type { ImportError, TextLocation, Warning } from "./notices";
 // Lenient parsing (docs/SPEC.md §3.1): recover JSON from an AI chat reply and say what was fixed.
 
 export const MAX_INPUT_BYTES = 256 * 1024;
-export const SCHEMA_VERSION = "1.0";
+/** The current import format version, written whenever Passclip adds or rewraps one. */
+export const SCHEMA_VERSION = "1.1";
 
 export type ParseResult =
   | { ok: true; data: unknown; warnings: Warning[] }

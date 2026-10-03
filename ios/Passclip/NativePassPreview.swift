@@ -39,6 +39,8 @@ struct NativePassPreview: View {
                 if let barcode = pass["barcode"], let message = barcode["message"]?.string {
                     if let image = barcodeImage(format: barcode["format"]?.string ?? "", message: message) {
                         Image(uiImage: image).interpolation(.none).resizable().scaledToFit().frame(maxHeight: 135).padding(8).background(.white).clipShape(RoundedRectangle(cornerRadius: 4)).accessibilityLabel("Barcode for this pass")
+                    } else if ["ean13", "code39", "codabar", "itf"].contains(barcode["format"]?.string ?? "") {
+                        Text("Wallet shows this barcode type on iOS 27 and later. The app can't preview it.").font(.caption)
                     } else { Text("Barcode preview unavailable. Check the original ticket.").font(.caption) }
                     if let alt = barcode["altText"]?.string { Text(alt).font(.caption).frame(maxWidth: .infinity) }
                 } else { Text("No barcode yet. Screenshot decoding is coming later.").font(.caption) }

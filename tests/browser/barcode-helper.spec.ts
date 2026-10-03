@@ -8,12 +8,15 @@ import { PNG } from "pngjs";
 // after the person chooses it.
 
 const read = (file: string) => readFileSync(path.join(process.cwd(), "examples", file), "utf8");
-const BCIDS = { qr: "qrcode", pdf417: "pdf417", aztec: "azteccode", code128: "code128" } as const;
+const BCIDS = {
+  qr: "qrcode", pdf417: "pdf417", aztec: "azteccode", code128: "code128",
+  ean13: "ean13", code39: "code39", codabar: "rationalizedCodabar", itf: "interleaved2of5",
+} as const;
 type Format = keyof typeof BCIDS;
 
 async function screenshot(codes: [Format, string][]): Promise<Buffer> {
   const images = await Promise.all(codes.map(async ([format, text]) =>
-    PNG.sync.read(await bwipjs.toBuffer({ bcid: BCIDS[format], text, scale: 3, padding: 10, backgroundcolor: "FFFFFF", ...(format === "code128" ? { height: 15 } : {}) }))));
+    PNG.sync.read(await bwipjs.toBuffer({ bcid: BCIDS[format], text, scale: 3, padding: 10, backgroundcolor: "FFFFFF", ...(format === "qr" || format === "pdf417" || format === "aztec" ? {} : { height: 15 }) }))));
   const gap = 60;
   const canvas = new PNG({ width: images.reduce((sum, image) => sum + image.width + gap, gap), height: Math.max(...images.map((image) => image.height)) + gap * 2 });
   canvas.data.fill(255);
@@ -53,7 +56,7 @@ const chooseScreenshot = (page: Page, card: number, buffer: Buffer, name = "tick
 
 const json = (page: Page) => page.getByLabel("Paste the JSON from your AI chat").inputValue().then((text) => JSON.parse(text));
 
-test("every supported format is read on the device and only used after choosing it", async ({ page }) => {
+test("every supported format, including iOS 27's, is read on the device and only used after choosing it", async ({ page }) => {
   const failures = captureFailures(page);
   await page.goto("/");
   const cases: [Format, string][] = [
@@ -61,6 +64,8 @@ test("every supported format is read on the device and only used after choosing 
     ["pdf417", "M1TANAKA/AIKO MS EQ7XK2P HNDCDGZQ 0101 337Y034K0042 100"],
     ["aztec", "R-55120-AZTEC"],
     ["code128", "R55120CODE128"],
+    ["ean13", "4006381333931"],
+    ["codabar", "A40156B"],
   ];
   for (const [format, message] of cases) {
     await importText(page, read("train-local-time.json"));

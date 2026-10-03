@@ -451,6 +451,83 @@ checkin@skylane.example",
 }
 `;
 
+exports[`mapToPassJson > maps grocery-card with the exact preview fields 1`] = `
+{
+  "backgroundColor": "rgb(46, 94, 58)",
+  "barcodes": [
+    {
+      "altText": "4006381333931",
+      "format": "PKBarcodeFormatEAN13",
+      "message": "4006381333931",
+      "messageEncoding": "iso-8859-1",
+    },
+  ],
+  "description": "Loyalty card for Green Grocer Card",
+  "foregroundColor": "rgb(255, 255, 255)",
+  "formatVersion": 1,
+  "labelColor": "rgb(188, 204, 192)",
+  "logoText": "Green Grocer",
+  "organizationName": "Green Grocer",
+  "passTypeIdentifier": "pass.com.example.test",
+  "semantics": {
+    "balance": {
+      "amount": "12.5",
+      "currencyCode": "EUR",
+    },
+  },
+  "serialNumber": "fixed-test-serial",
+  "storeCard": {
+    "auxiliaryFields": [],
+    "backFields": [
+      {
+        "key": "holder_back",
+        "label": "Name",
+        "value": "Aiko Tanaka",
+      },
+      {
+        "key": "program",
+        "label": "Program",
+        "value": "Green Grocer Card",
+      },
+      {
+        "key": "source",
+        "label": "Source",
+        "value": "Imported from Your Green Grocer card is ready
+rewards@greengrocer.example",
+      },
+      {
+        "attributedValue": "<a href="https://passclip.example">Open</a>",
+        "key": "made_with",
+        "label": "Made with Passclip",
+        "value": "https://passclip.example",
+      },
+    ],
+    "headerFields": [],
+    "primaryFields": [
+      {
+        "currencyCode": "EUR",
+        "key": "balance",
+        "label": "Balance",
+        "value": 12.5,
+      },
+    ],
+    "secondaryFields": [
+      {
+        "key": "member",
+        "label": "Member",
+        "value": "Aiko Tanaka",
+      },
+      {
+        "key": "member_id",
+        "label": "Member ID",
+        "value": "4006381333931",
+      },
+    ],
+  },
+  "teamIdentifier": "ABCDE12345",
+}
+`;
+
 exports[`mapToPassJson > maps gym-membership with the exact preview fields 1`] = `
 {
   "backgroundColor": "rgb(47, 54, 64)",

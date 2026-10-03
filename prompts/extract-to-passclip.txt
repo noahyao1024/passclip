@@ -15,9 +15,9 @@ RULES
 10. "style" is optional. Add it only if the brand color is obvious, as "#RRGGBB", with text colors that are easy to read on it.
 11. If nothing in the content can become a pass, reply with "passes": [] and explain why in "warnings".
 
-FORMAT (schemaVersion "1.0")
+FORMAT (schemaVersion "1.1")
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "source": { "kind": "email|pdf|screenshot|webpage|manual|other", "sender": "...", "subject": "...", "receivedAt": "date or date-time" },
   "passes": [ PASS, ... ],
   "warnings": ["..."]
@@ -40,7 +40,7 @@ PASS fields. Only "type" and "title" are required. Boarding passes also need "tr
 "membership": { "programName", "memberId", "tier", "since", "points" (a number), "balance": { "amount" (a number), "currency" (like "JPY") } }
 "offer": { "headline" (like "20% off"), "code", "terms" }
 "price": { "amount" (a number), "currency" }
-"barcode": { "format": "qr|pdf417|aztec|code128", "message": the exact code data, "altText": short text shown under the code }
+"barcode": { "format": "qr|pdf417|aztec|code128|ean13|code39|codabar|itf" (the type of code the content names; if it doesn't say, use qr for square codes and code128 for bar codes, and add a warning to check the type), "message": the exact code data, "altText": short text shown under the code }
 "notes": useful info such as door times, bag rules or check-in instructions
 "extraFields": [ { "label", "value" } ] for other useful details (10 at most)
 "attachments": [ { "title", "url" (https only), "kind": "pdf|image|link|map|other" } ] for useful links in the content, like the e-ticket, a map or "manage booking"
@@ -50,7 +50,7 @@ PASS fields. Only "type" and "title" are required. Boarding passes also need "tr
 EXAMPLE OUTPUT
 ```json
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "source": { "kind": "email", "sender": "tickets@bluelantern.example", "subject": "Your tickets: Jazz Night" },
   "passes": [
     {

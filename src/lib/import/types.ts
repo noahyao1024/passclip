@@ -25,13 +25,13 @@ export type HexColor = string;
 export type Warnings = string[];
 
 /**
- * Structured data that Passclip turns into Apple Wallet passes. Usually produced by an AI model using prompts/extract-to-passclip.txt, or written by hand. Version 1.0.
+ * Structured data that Passclip turns into Apple Wallet passes. Usually produced by an AI model using prompts/extract-to-passclip.txt, or written by hand. Version 1.1; version 1.0 documents are read too.
  */
 export interface PassclipImport {
   /**
-   * Format version. Always "1.0" for this schema.
+   * Format version: "1.1" (adds the ean13, code39, codabar and itf barcode types), or "1.0".
    */
-  schemaVersion: "1.0";
+  schemaVersion: "1.1" | "1.0";
   source?: Source;
   /**
    * One entry per ticket, person, travel segment, card or coupon. Empty when nothing usable was found (explain why in warnings).
@@ -233,7 +233,10 @@ export interface Offer {
   terms?: string;
 }
 export interface Barcode {
-  format: "qr" | "pdf417" | "aztec" | "code128";
+  /**
+   * The type of code. ean13, code39, codabar and itf show in Wallet on iOS 27 and later.
+   */
+  format: "qr" | "pdf417" | "aztec" | "code128" | "ean13" | "code39" | "codabar" | "itf";
   /**
    * The exact data inside the code. Must come from the source text or a real scan, never invented.
    */
