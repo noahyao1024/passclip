@@ -50,7 +50,7 @@ Milestones 0 and 1 don't need anything from Apple.
 
 ## Going live
 
-[`docs/LAUNCH.md`](docs/LAUNCH.md) walks through everything that needs you: Apple membership, the pass certificate, putting the site online, Apple's badge, and checking it on your iPhone.
+[`docs/LAUNCH.md`](docs/LAUNCH.md) walks through everything that needs you: Apple membership, the pass certificate, putting the site online, file attachments (optional), Apple's badge, and checking it on your iPhone.
 
 ## Configure real Wallet passes
 

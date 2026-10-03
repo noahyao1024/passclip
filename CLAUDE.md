@@ -45,10 +45,12 @@ prompts/         extract-to-passclip.txt
 examples/        valid fixtures, recoverable/, invalid/
 pass-models/     default.pass/ (icon and logo PNGs, base pass.json)
 scripts/         validate-examples.ts, gen-types.ts, check-env.ts, make-placeholder-images.ts, lib/ (shared with tests)
-src/app/         page.tsx (drop site), privacy/page.tsx, api/pass/route.ts, api/ics/route.ts
+src/app/         page.tsx (drop site), privacy/page.tsx, delete-file/page.tsx, api/pass/route.ts, api/ics/route.ts, api/attachments/ (upload, delete)
 src/lib/import/  parse.ts, validate.ts, messages.ts, normalize.ts, types.ts (generated)
 src/lib/pass/    map.ts (+ one mapper per type), colors.ts, semantics.ts, build.ts, signing.ts
 src/lib/calendar/ ics.ts
+src/lib/storage/ config.ts, sigv4.ts (presigned S3 links)
+src/lib/attachments/ rules.ts (shared with the browser), storage.ts (server)
 src/components/  DropZone, CopyPromptButton, PassPreview, PassResult, BarcodeHelper
 tests/           contract tests over examples/ (unit tests sit next to their code as *.test.ts)
 ```
@@ -61,12 +63,13 @@ Keep these current:
 - `npm run dev`: start the site at http://localhost:3000
 - `npm run build`: production build
 - `npm test`: unit and contract tests, once; `npm run test:watch` re-runs them on every change
-- `npm run test:browser`: after `npm run build`, checks the production site in desktop/light and 360 px/dark Chromium. Uses system Chromium when available, or install it with `npx playwright install chromium`. Does not replace a real iPhone Safari check.
+- `npm run test:browser`: after `npm run build`, checks the production site in desktop/light and 360 px/dark Chromium, with a fake storage bucket for uploads (ports 3100 and 3102). Uses system Chromium when available, or install it with `npx playwright install chromium`. Does not replace a real iPhone Safari check.
 - `npm run lint`: ESLint
 - `npm run typecheck`: generates Next's route types (`next typegen`), then runs `tsc --noEmit`
 - `npm run validate:examples`: check every `examples/*.json` against the schema (`npm test` covers the recoverable and invalid fixtures)
 - `npm run gen:types`: regenerate `src/lib/import/types.ts` and the precompiled validator (`schema-validator.generated.ts`) from the schema. A test fails if you forget.
-- `npm run check:env`: check the pass signing settings in `.env.local`. It exits with an error until they're set up.
+- `npm run check:env`: check the pass signing settings in `.env.local` (and the optional file upload settings). It exits with an error until signing is set up.
+- `npm run check:storage`: try a real upload, public read, CORS check and delete with the `STORAGE_*` settings in `.env.local` (docs/LAUNCH.md).
 
 M2/native commands:
 - `npm run gen:images`: regenerate the committed neutral icon/logo model images.

@@ -7,10 +7,12 @@ import { MAX_INPUT_BYTES, SCHEMA_VERSION } from "@/lib/import/parse";
 import type { Warning } from "@/lib/import/notices";
 import { layoutPass } from "@/lib/pass/fields";
 import type { DecodedCode } from "@/lib/barcode/decode";
-import { withBarcode } from "@/lib/import/edit";
+import { withAttachment, withBarcode } from "@/lib/import/edit";
+import type { UploadPlan } from "@/lib/attachments/storage";
 import { offersCalendar } from "@/lib/calendar/ics";
 import { AddToCalendar } from "./AddToCalendar";
 import { AddToWallet } from "./AddToWallet";
+import { AttachFile } from "./AttachFile";
 import { BarcodeHelper } from "./BarcodeHelper";
 import { PassPreview } from "./PassPreview";
 import { ArrowMark, ClipMark, TicketMark } from "./Marks";
@@ -27,7 +29,37 @@ function Warnings({ warnings }: { warnings: Warning[] }) {
   </>;
 }
 
-export default function DropSite({ prompt, walletAvailable = false, development = false }: { prompt: string; walletAvailable?: boolean; development?: boolean }) {
+interface AttachedFile { title: string; deleteUrl: string }
+
+function DeleteLinks({ files }: { files: AttachedFile[] }) {
+  const [status, setStatus] = useState("");
+  async function copy(file: AttachedFile) {
+    try {
+      await navigator.clipboard.writeText(file.deleteUrl);
+      setStatus(`Copied the delete link for “${file.title}”.`);
+    } catch {
+      setStatus("Select the link and copy it.");
+    }
+  }
+  return <section className="delete-links" aria-labelledby="delete-links-title">
+    <h3 id="delete-links-title">Save your delete links</h3>
+    <p>Passclip doesn’t keep these links, so this is the only time you’ll see them. Open one later to delete its file.</p>
+    <ul>{files.map((file) => <li key={file.deleteUrl}>
+      <span className="delete-link-title">{file.title}</span>
+      <input readOnly value={file.deleteUrl} aria-label={`Delete link for ${file.title}`} onFocus={(event) => event.target.select()} />
+      <button className="text-button" type="button" onClick={() => void copy(file)}>Copy delete link</button>
+    </li>)}</ul>
+    <p className="copy-status" role="status">{status}</p>
+  </section>;
+}
+
+export default function DropSite({ prompt, walletAvailable = false, development = false, uploads }: {
+  prompt: string;
+  walletAvailable?: boolean;
+  development?: boolean;
+  /** Set when file uploads are configured: where uploaded files live. */
+  uploads?: { publicUrl: string };
+}) {
   const [text, setText] = useState("");
   const [email, setEmail] = useState("");
   const [result, setResult] = useState<Result | null>(null);
@@ -37,10 +69,13 @@ export default function DropSite({ prompt, walletAvailable = false, development 
   const [fileError, setFileError] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
   const [manualCopy, setManualCopy] = useState(false);
-  const [barcodeNotice, setBarcodeNotice] = useState("");
+  const [notice, setNotice] = useState("");
+  const [attached, setAttached] = useState<AttachedFile[]>([]);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const fileRequest = useRef(0);
+  // Uploads finish later; they add their link to the text as it is then, not as it was.
+  const latestText = useRef(text);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -57,7 +92,8 @@ export default function DropSite({ prompt, walletAvailable = false, development 
 
   function changeText(value: string) {
     fileRequest.current++;
-    setBarcodeNotice("");
+    setNotice("");
+    latestText.current = value;
     setText(value);
     setResult(null);
     setFileError("");
@@ -68,11 +104,24 @@ export default function DropSite({ prompt, walletAvailable = false, development 
   function applyBarcode(passIndex: number, code: DecodedCode) {
     const updated = withBarcode(text, passIndex, code);
     if (!updated) {
-      setBarcodeNotice("The code couldn't be added. Fix the problems in your reply first.");
+      setNotice("The code couldn't be added. Fix the problems in your reply first.");
       return;
     }
     changeText(updated);
-    setBarcodeNotice(`Added the code to pass ${passIndex + 1}. You can see it in your JSON above.`);
+    setNotice(`Added the code to pass ${passIndex + 1}. You can see it in your JSON above.`);
+  }
+
+  // The delete link is kept on the page even if its link can't go into the JSON, since it's
+  // shown only once.
+  function applyAttachment(passIndex: number, { attachment, deleteUrl }: { attachment: UploadPlan["attachment"]; deleteUrl: string }) {
+    setAttached((files) => [...files, { title: attachment.title, deleteUrl }]);
+    const updated = withAttachment(latestText.current, passIndex, attachment);
+    if (!updated) {
+      setNotice(`Uploaded “${attachment.title}”, but its link couldn’t be added to pass ${passIndex + 1}. Fix the problems in your reply, then add this link to the pass: ${attachment.url}`);
+      return;
+    }
+    changeText(updated);
+    setNotice(`Attached “${attachment.title}” to pass ${passIndex + 1}. Its link is in your JSON above and on the back of the pass.`);
   }
 
   async function readFile(files: FileList | File[]) {
@@ -158,13 +207,14 @@ export default function DropSite({ prompt, walletAvailable = false, development 
 
     <section className="results-section" aria-labelledby="results-title" aria-busy={processing}>
       <div className="results-heading"><h2 id="results-title">Your passes</h2><p role="status">{processing ? "Checking your reply…" : result?.ok ? `${result.value.passes.length} ${result.value.passes.length === 1 ? "pass" : "passes"} found` : "Preview before you pocket it."}</p></div>
+      <p className="edit-notice" role="status">{notice}</p>
+      {attached.length > 0 && <DeleteLinks files={attached} />}
       {!result && !processing && <div className="results-empty"><span><TicketMark /></span><p>Good things come in small passes.</p><p>Paste a reply above to see yours here.</p></div>}
       {result && !result.ok && <div className="import-errors" role="alert"><h3>Fix these details in your reply</h3><ul>{result.errors.map((error, i) => <li key={i}><p>{error.message}</p>{error.location && <><button className="text-button" onClick={() => { textarea.current?.focus(); textarea.current?.setSelectionRange(error.location!.offset, error.location!.offset + 1); }}>Go to line {error.location.line}, column {error.location.column}</button><pre>{error.location.snippet}</pre></>}</li>)}</ul></div>}
       <Warnings warnings={importWarnings} />
       {needsTimeZone && <div className="zone-picker"><label htmlFor="fallback-zone">Check the time zone</label><p>Some times arrived without a time zone. We used your browser’s zone; choose where the event or departure happens.</p><select id="fallback-zone" value={selectedZone} onChange={(event) => { setTimeZone(event.target.value); setProcessing(true); }}>{zones.map((zone) => <option key={zone} value={zone}>{zone.replaceAll("_", " ")}</option>)}</select></div>}
       {result?.ok && result.value.passes.length === 0 && <div className="results-empty"><p>No passes found</p><p>Ask your AI to extract a ticket, booking, membership or coupon, then paste its reply here.</p></div>}
       {result?.ok && result.value.passes.length > 0 && <>
-        <p className="barcode-notice" role="status">{barcodeNotice}</p>
         <p className="preview-note">{!walletAvailable ? "Preview only · Pass signing isn’t set up yet. " : "Adding to Wallet sends the selected pass to our signing server. "}Check every detail against your original ticket.</p>
         <div className="pass-results">{result.value.passes.map((pass, index) => {
           const layout = layoutPass(pass, { source: result.value.source });
@@ -172,7 +222,7 @@ export default function DropSite({ prompt, walletAvailable = false, development 
           const { needsTimeZone: _needsTimeZone, ...payload } = pass;
           void _needsTimeZone;
           const importText = JSON.stringify({ schemaVersion: SCHEMA_VERSION, source: result.value.source, passes: [payload] });
-          return <article className="pass-result" key={`${index}-${pass.type}`}><div className="pass-result-heading"><span>Pass {index + 1}</span><h3>{pass.title}</h3></div><PassPreview pass={pass} layout={layout} /><Warnings warnings={warnings} /><BarcodeHelper key={`${index}-${pass.barcode?.format}-${pass.barcode?.message}`} current={pass.barcode} onUse={(code) => applyBarcode(index, code)} /><div className="pass-actions">{walletAvailable && <AddToWallet importText={importText} fallbackTimeZone={pass.timeZone ?? "UTC"} />}{offersCalendar(pass) && <AddToCalendar importText={importText} fallbackTimeZone={pass.timeZone ?? "UTC"} />}{development && <button className="text-button" onClick={async () => {
+          return <article className="pass-result" key={`${index}-${pass.type}`}><div className="pass-result-heading"><span>Pass {index + 1}</span><h3>{pass.title}</h3></div><PassPreview pass={pass} layout={layout} /><Warnings warnings={warnings} /><BarcodeHelper key={`${index}-${pass.barcode?.format}-${pass.barcode?.message}`} current={pass.barcode} onUse={(code) => applyBarcode(index, code)} />{uploads && <AttachFile uploaded={(pass.attachments ?? []).filter((attachment) => attachment.url.startsWith(`${uploads.publicUrl}/`)).length} total={pass.attachments?.length ?? 0} onUploaded={(plan) => applyAttachment(index, plan)} />}<div className="pass-actions">{walletAvailable && <AddToWallet importText={importText} fallbackTimeZone={pass.timeZone ?? "UTC"} />}{offersCalendar(pass) && <AddToCalendar importText={importText} fallbackTimeZone={pass.timeZone ?? "UTC"} />}{development && <button className="text-button" onClick={async () => {
             const { mapToPassJson } = await import("@/lib/pass/map");
             const json = mapToPassJson(pass, { passTypeIdentifier: "pass.preview.unconfigured", teamIdentifier: "UNCONFIGURED", serialNumber: crypto.randomUUID(), source: result.value.source });
             const url = URL.createObjectURL(new Blob([JSON.stringify(json, null, 2)], { type: "application/json" }));

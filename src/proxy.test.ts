@@ -36,6 +36,25 @@ describe("document security policy", () => {
     expect(policy).not.toContain("upgrade-insecure-requests");
   });
 
+  it("lets pages reach the storage bucket only when uploads are set up", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const settings = {
+      STORAGE_ENDPOINT: "https://abcd.storage.supabase.co/storage/v1/s3",
+      STORAGE_REGION: "eu-central-1",
+      STORAGE_BUCKET: "passclip-files",
+      STORAGE_ACCESS_KEY_ID: "id",
+      STORAGE_SECRET_ACCESS_KEY: "secret",
+      STORAGE_PUBLIC_URL: "https://abcd.supabase.co/storage/v1/object/public/passclip-files",
+    };
+    for (const [name, value] of Object.entries(settings)) vi.stubEnv(name, value);
+    const policy = proxy(new NextRequest("https://passclip.example/")).headers.get("Content-Security-Policy")!;
+    expect(policy).toContain("connect-src 'self' https://abcd.storage.supabase.co;");
+    expect(policy).not.toContain("secret");
+
+    vi.stubEnv("STORAGE_BUCKET", "");
+    expect(proxy(new NextRequest("https://passclip.example/")).headers.get("Content-Security-Policy")).toContain("connect-src 'self';");
+  });
+
   it("upgrades requests only when the original connection uses HTTPS", () => {
     vi.stubEnv("NODE_ENV", "production");
     const http = proxy(new NextRequest("http://localhost:3000/"));

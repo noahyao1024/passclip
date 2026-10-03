@@ -136,10 +136,10 @@ textarea::placeholder { color: var(--muted); opacity: 1; }
 .zone-picker p { color: var(--muted); font-size: 13px; margin: 6px 0 12px; }
 .zone-picker select { max-width: 100%; width: 330px; padding: 9px 12px; background: var(--input); color: var(--foreground); border: 1px solid var(--border); border-radius: 3px; }
 .site-footer, footer { max-width: 1108px; margin: auto; padding: 23px 0 30px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; gap: 18px; font-size: 12px; color: var(--muted); }
-.privacy-page { max-width: 780px; }
-.privacy-page h1 { font-size: 48px; margin-bottom: 25px; }
+.privacy-page, .delete-page { max-width: 780px; }
+.privacy-page h1, .delete-page h1 { font-size: 48px; margin-bottom: 25px; }
 .privacy-page h2 { font-size: 24px; margin: 30px 0 12px; }
-.privacy-page p { margin: 12px 0; }
+.privacy-page p, .delete-page p { margin: 12px 0; }
 .privacy-page ul { padding-left: 22px; margin: 12px 0; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .skip-link { position: absolute; top: -100px; left: 16px; z-index: 10; background: var(--surface); color: var(--signal); padding: 12px; }
@@ -170,7 +170,7 @@ textarea::placeholder { color: var(--muted); opacity: 1; }
   .preview-toolbar { max-width: 360px; margin-inline: auto; }
   .pass-result-heading { min-height: auto; margin-bottom: 15px; }
   .site-footer, footer { margin: 0 20px; flex-wrap: wrap; }
-  .privacy-page h1 { font-size: 38px; }
+  .privacy-page h1, .delete-page h1 { font-size: 38px; }
 }
 @media (prefers-color-scheme: dark) {
   :root { --background: #131b28; --surface: #1c2839; --foreground: #e9edf2; --muted: #b3bfd0; --border: #536176; --signal: #a8b2ff; --signal-text: #152049; --error: #ffaca5; --input: #172231; }
@@ -221,4 +221,23 @@ textarea::placeholder { color: var(--muted); opacity: 1; }
 .typed-code-warning { margin: 8px 0 4px; font-size: 12px; color: var(--error); }
 .typed-code select, .typed-code input { display: block; width: 100%; padding: 9px 12px; background: var(--input); color: var(--foreground); border: 1px solid var(--border); border-radius: 3px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; }
 .typed-code .button { margin-top: 10px; }
-.barcode-notice { color: var(--signal); font-size: 13px; }
+.edit-notice { color: var(--signal); font-size: 13px; }
+
+/* Attachments (Milestone 5) */
+.attach-file { margin-top: 14px; padding: 14px; border: 1px dashed var(--border); border-radius: 4px; background: var(--surface); font-size: 13px; }
+.attach-file-intro { color: var(--muted); margin-bottom: 10px; }
+.attach-file-note { margin-top: 8px; font-size: 12px; color: var(--foreground); }
+.attach-file-status { margin-top: 6px; color: var(--signal); font-size: 12px; }
+.attach-file-status:empty { margin: 0; }
+.attach-file .error-text { padding: 8px 0 0; }
+.delete-links { background: var(--surface); padding: 16px; border-left: 3px solid var(--stub); margin: 16px 0; font-size: 13px; }
+.delete-links h3 { font-size: 13px; }
+.delete-links > p { margin-top: 6px; color: var(--muted); }
+.delete-links ul { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 12px; }
+.delete-links li { display: grid; gap: 4px; }
+.delete-link-title { font-weight: 600; overflow-wrap: anywhere; }
+.delete-links input { width: 100%; padding: 8px 10px; background: var(--input); color: var(--foreground); border: 1px solid var(--border); border-radius: 3px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+.delete-links .text-button { justify-self: start; }
+.delete-links .copy-status:empty { display: none; }
+.delete-page .file-name { overflow-wrap: anywhere; }
+.delete-file-form { margin-top: 24px; }

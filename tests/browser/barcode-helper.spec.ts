@@ -78,7 +78,7 @@ test("every supported format, including iOS 27's, is read on the device and only
     // Nothing changes until the person chooses the code.
     expect((await json(page)).passes[0].barcode).toBeUndefined();
     await card.getByRole("button", { name: "Use this code" }).click();
-    await expect(page.locator(".barcode-notice")).toHaveText("Added the code to pass 1. You can see it in your JSON above.");
+    await expect(page.locator(".edit-notice")).toHaveText("Added the code to pass 1. You can see it in your JSON above.");
     expect((await json(page)).passes[0].barcode).toEqual({ format, message });
     await expect(page.locator(".pass-result").first().locator(".barcode-status")).toHaveText("Barcode ready");
     expect(uploads).toEqual([]);
@@ -115,7 +115,7 @@ test("a different code makes the person choose, and a matching one is confirmed"
 
   await chooseScreenshot(page, 0, await screenshot([["qr", "DIFFERENT-CODE"]]));
   await first().getByRole("button", { name: "Use this code" }).click();
-  await expect(page.locator(".barcode-notice")).toContainText("pass 1");
+  await expect(page.locator(".edit-notice")).toContainText("pass 1");
   const after = await json(page);
   expect(after.passes[0].barcode).toEqual({ format: "qr", message: "DIFFERENT-CODE" });
   expect(after.passes[1].barcode).toEqual(JSON.parse(tickets).passes[1].barcode);

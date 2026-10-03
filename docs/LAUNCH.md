@@ -69,11 +69,33 @@ It confirms the certificate matches your Pass Type ID and Team ID, the key belon
 
 Rate limiting works per visitor on Vercel automatically. For one limit shared across all servers, also add a rate-limit rule in Vercel's Firewall. On another host, set `RATE_LIMIT_IP_HEADER` (see `.env.example`).
 
-## 6. Add Apple's badge
+## 6. Turn on file attachments (optional, about 15 minutes)
+
+With this, people can clip a ticket PDF or photo to the back of a pass. Without it, the site simply doesn't offer uploads. Any S3-compatible storage works; these steps use Supabase, which needs no extra setup for browser uploads (D19).
+
+1. At [supabase.com/dashboard](https://supabase.com/dashboard), create a project just for Passclip (its storage keys open every bucket in the project).
+2. **Storage → New bucket**: name it `passclip-files`, turn on **Public bucket**, limit file size to **10 MB**, and allow only `application/pdf, image/jpeg, image/png, image/heic`. Public means anyone with a file's long random link can open it, which is how the link on the pass works.
+3. In Storage's **S3** settings, turn on the S3 connection, copy the **Endpoint** and **Region**, and create an **access key**. Copy the secret now; Supabase shows it once.
+4. Add these to `.env.local`, then to Vercel's Environment Variables:
+
+   | Name | Value |
+   |---|---|
+   | `STORAGE_ENDPOINT` | the Endpoint, like `https://<project>.storage.supabase.co/storage/v1/s3` |
+   | `STORAGE_REGION` | the Region, like `ap-northeast-1` |
+   | `STORAGE_BUCKET` | `passclip-files` |
+   | `STORAGE_ACCESS_KEY_ID` | the access key ID |
+   | `STORAGE_SECRET_ACCESS_KEY` | the secret |
+   | `STORAGE_PUBLIC_URL` | `https://<project>.supabase.co/storage/v1/object/public/passclip-files` |
+
+5. Run `npm run check:storage` with `PUBLIC_BASE_URL` set to your site's address. It uploads a tiny test image, reads it back from the public address, checks that browsers on your site may upload, and deletes it. Each problem it finds says what to fix.
+
+Cloudflare R2 or AWS S3 work the same way, with two differences: use region `auto` on R2, and add a CORS rule to the bucket that allows `PUT` with the `Content-Type` header from your site's address (and `http://localhost:3000` for local testing).
+
+## 7. Add Apple's badge
 
 Apple requires its own "Add to Apple Wallet" artwork, under a license only you can accept. Follow [`public/wallet/README.md`](../public/wallet/README.md): download the files, then add the two SVGs to `public/wallet/` (GitHub's **Add file → Upload files** works from a browser). Vercel redeploys and the badge appears.
 
-## 7. Check it on your iPhone (about 20 minutes)
+## 8. Check it on your iPhone (about 20 minutes)
 
 Open the site in Safari on your iPhone and go through the list:
 
@@ -81,12 +103,13 @@ Open the site in Safari on your iPhone and go through the list:
 - [ ] Every example in `examples/` adds, and its barcode scans with another phone.
 - [ ] **Add to calendar** opens the event with the right local time and a reminder (also try it on a Mac, and in Google Calendar).
 - [ ] The barcode helper reads a screenshot of a real ticket's code.
+- [ ] If you turned on attachments: attach a PDF and a photo (HEIC from the camera roll too), add the pass, and open both from the back of the pass in Wallet. Then open the delete link and check the file no longer opens.
 - [ ] Dark mode, a narrow screen, and the back of each pass (tap it), including links.
 - [ ] If your iPhone runs iOS 27: the grocery card's EAN-13 barcode shows in Wallet. Also try a Codabar card (D17 explains why).
 - [ ] On Apple Watch, passes appear (Code 128 barcodes won't show there; that's expected).
 
 Tell Claude Code anything that looks wrong. It can fix the code, but it can't see your phone.
 
-## 8. The iPhone app (needs a Mac with Xcode)
+## 9. The iPhone app (needs a Mac with Xcode)
 
 See [`ios/README.md`](../ios/README.md). Cloud builds and simulator tests already pass. Installing on your own iPhone needs Xcode, your Team ID and your own bundle IDs.

@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { readStorageConfig } from "@/lib/storage/config";
 
 export function proxy(request: NextRequest) {
   const nonce = randomBytes(16).toString("base64");
@@ -7,13 +8,16 @@ export function proxy(request: NextRequest) {
   // The deployment's HTTPS terminator forwards the original protocol.
   const isHttps = request.nextUrl.protocol === "https:"
     || request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() === "https";
+  // With uploads set up, the browser sends files straight to the storage bucket (D19).
+  const storage = readStorageConfig(process.env);
+  const storageOrigin = storage.ok ? ` ${new URL(storage.config.endpoint).origin}` : "";
   const directives = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ""}`,
     `style-src 'self' ${isDevelopment ? "'unsafe-inline'" : `'nonce-${nonce}'`}`,
     "img-src 'self' data:",
     "font-src 'self'",
-    `connect-src 'self'${isDevelopment ? " ws: wss:" : ""}`,
+    `connect-src 'self'${storageOrigin}${isDevelopment ? " ws: wss:" : ""}`,
     "object-src 'none'",
     "frame-src 'none'",
     "base-uri 'self'",

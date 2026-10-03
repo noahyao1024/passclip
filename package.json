@@ -13,6 +13,7 @@
     "validate:examples": "tsx scripts/validate-examples.ts",
     "gen:types": "tsx scripts/gen-types.ts",
     "check:env": "tsx scripts/check-env.ts",
+    "check:storage": "tsx scripts/check-storage.ts",
     "test:browser": "playwright test",
     "gen:images": "tsx scripts/make-placeholder-images.ts",
     "smoke:signing": "node scripts/smoke-signing.mjs"
