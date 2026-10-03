@@ -68,4 +68,4 @@ The SwiftUI app and Share Extension are under [`ios/`](ios/README.md). Generate 
 
 M2's backend exposes `/api/import` for native validation and `/api/pass` for signed Wallet downloads. The website enables its navigation form only when signing configuration passes inspection. Set `PUBLIC_BASE_URL` to the public site address when running behind a proxy. `npm run gen:images` refreshes placeholder art; after `npm run build`, `npm run smoke:signing` exercises all six examples and a real browser download using temporary test certificates. It requires OpenSSL, a Chromium executable, and a free port 3101. Test certificates are never suitable for real Wallet passes.
 
-Before M2 can ship, you still need genuine Apple certificates, checks on a real iPhone, Apple's official badge artwork (see `public/wallet/README.md`) and a shared per-IP rate limit at your host.
+Before M2 can ship, you still need genuine Apple certificates, checks on a real iPhone, Apple's official badge artwork (see `public/wallet/README.md`) and, if you host somewhere other than Vercel, `RATE_LIMIT_IP_HEADER` (see `.env.example`).

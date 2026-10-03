@@ -60,18 +60,36 @@ export async function readImportRequest(request: Request): Promise<{ result: Pro
   return { result, index };
 }
 
-// Bounded process-local guard for development/single-instance hosting. Deployment must
-// enforce a shared IP limit at its trusted ingress for multiple workers/instances.
+// Rate limit for pass, calendar and import requests: 30 a minute per visitor (docs/SPEC.md §11).
+// A visitor's IP comes only from a header the host sets and visitors can't fake: on Vercel,
+// x-vercel-forwarded-for (Vercel overwrites client-sent values, checked 2026-10-03, D18), or the
+// header named in RATE_LIMIT_IP_HEADER elsewhere. Without one, everyone shares one budget, since
+// any other header could be spoofed. Counts live in each server instance's memory; for one shared
+// limit across instances, add a rate-limit rule at the host (on Vercel, a Firewall rule).
+const LIMIT_PER_MINUTE = 30;
+const MAX_TRACKED = 10_000;
 const windows = new Map<string, { count: number; expires: number }>();
-export function allowRequest(request: Request, now = Date.now()): boolean {
-  // Client-supplied forwarding headers aren't authenticated here. One process-wide
-  // bucket can't be bypassed by spoofing an IP; use a trusted ingress for per-IP limits.
-  void request;
-  const key = "generation";
-  let window = windows.get(key);
-  if (!window || now >= window.expires) { window = { count: 0, expires: now + 60_000 }; windows.set(key, window); }
-  return ++window.count <= 30;
+
+function trustedIpHeader(env: Readonly<Record<string, string | undefined>>): string | undefined {
+  if (env.RATE_LIMIT_IP_HEADER?.trim()) return env.RATE_LIMIT_IP_HEADER.trim().toLowerCase();
+  return env.VERCEL === "1" ? "x-vercel-forwarded-for" : undefined;
 }
+
+export function allowRequest(request: Request, now = Date.now(), env: Readonly<Record<string, string | undefined>> = process.env): boolean {
+  const header = trustedIpHeader(env);
+  const ip = header ? request.headers.get(header)?.split(",")[0]?.trim() : undefined;
+  const key = ip ? `ip:${ip}` : "everyone";
+  if (windows.size > MAX_TRACKED) {
+    for (const [known, window] of windows) if (now >= window.expires) windows.delete(known);
+  }
+  let window = windows.get(key);
+  if (!window || now >= window.expires) {
+    window = { count: 0, expires: now + 60_000 };
+    windows.set(key, window);
+  }
+  return ++window.count <= LIMIT_PER_MINUTE;
+}
+
 /** Browser forms navigate to the response, so they get a readable page; the iOS app gets JSON. */
 function isFormRequest(request?: Request) {
   return request?.headers.get("content-type")?.split(";")[0].trim() === "application/x-www-form-urlencoded";
