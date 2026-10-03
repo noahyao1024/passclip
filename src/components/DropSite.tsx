@@ -6,7 +6,10 @@ import { processImport } from "@/lib/import/process";
 import { MAX_INPUT_BYTES } from "@/lib/import/parse";
 import type { Warning } from "@/lib/import/notices";
 import { layoutPass } from "@/lib/pass/fields";
+import type { DecodedCode } from "@/lib/barcode/decode";
+import { withBarcode } from "@/lib/import/edit";
 import { AddToWallet } from "./AddToWallet";
+import { BarcodeHelper } from "./BarcodeHelper";
 import { PassPreview } from "./PassPreview";
 import { ArrowMark, ClipMark, TicketMark } from "./Marks";
 
@@ -32,6 +35,7 @@ export default function DropSite({ prompt, walletAvailable = false, development 
   const [fileError, setFileError] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
   const [manualCopy, setManualCopy] = useState(false);
+  const [barcodeNotice, setBarcodeNotice] = useState("");
   const textarea = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const fileRequest = useRef(0);
@@ -51,10 +55,22 @@ export default function DropSite({ prompt, walletAvailable = false, development 
 
   function changeText(value: string) {
     fileRequest.current++;
+    setBarcodeNotice("");
     setText(value);
     setResult(null);
     setFileError("");
     setProcessing(Boolean(value.trim()));
+  }
+
+  // The chosen code goes into the JSON itself, so the preview and the pass always agree with it.
+  function applyBarcode(passIndex: number, code: DecodedCode) {
+    const updated = withBarcode(text, passIndex, code);
+    if (!updated) {
+      setBarcodeNotice("The code couldn't be added. Fix the problems in your reply first.");
+      return;
+    }
+    changeText(updated);
+    setBarcodeNotice(`Added the code to pass ${passIndex + 1}. You can see it in your JSON above.`);
   }
 
   async function readFile(files: FileList | File[]) {
@@ -146,6 +162,7 @@ export default function DropSite({ prompt, walletAvailable = false, development 
       {needsTimeZone && <div className="zone-picker"><label htmlFor="fallback-zone">Check the time zone</label><p>Some times arrived without a time zone. We used your browser’s zone; choose where the event or departure happens.</p><select id="fallback-zone" value={selectedZone} onChange={(event) => { setTimeZone(event.target.value); setProcessing(true); }}>{zones.map((zone) => <option key={zone} value={zone}>{zone.replaceAll("_", " ")}</option>)}</select></div>}
       {result?.ok && result.value.passes.length === 0 && <div className="results-empty"><p>No passes found</p><p>Ask your AI to extract a ticket, booking, membership or coupon, then paste its reply here.</p></div>}
       {result?.ok && result.value.passes.length > 0 && <>
+        <p className="barcode-notice" role="status">{barcodeNotice}</p>
         <p className="preview-note">{!walletAvailable ? "Preview only · Pass signing isn’t set up yet. " : "Adding to Wallet sends the selected pass to our signing server. "}Check every detail against your original ticket.</p>
         <div className="pass-results">{result.value.passes.map((pass, index) => {
           const layout = layoutPass(pass, { source: result.value.source });
@@ -153,7 +170,7 @@ export default function DropSite({ prompt, walletAvailable = false, development 
           const { needsTimeZone: _needsTimeZone, ...payload } = pass;
           void _needsTimeZone;
           const importText = JSON.stringify({ schemaVersion: "1.0", source: result.value.source, passes: [payload] });
-          return <article className="pass-result" key={`${index}-${pass.type}`}><div className="pass-result-heading"><span>Pass {index + 1}</span><h3>{pass.title}</h3></div><PassPreview pass={pass} layout={layout} /><Warnings warnings={warnings} /><div className="pass-actions">{walletAvailable && <AddToWallet importText={importText} fallbackTimeZone={pass.timeZone ?? "UTC"} />}{development && <button className="text-button" onClick={async () => {
+          return <article className="pass-result" key={`${index}-${pass.type}`}><div className="pass-result-heading"><span>Pass {index + 1}</span><h3>{pass.title}</h3></div><PassPreview pass={pass} layout={layout} /><Warnings warnings={warnings} /><BarcodeHelper key={`${index}-${pass.barcode?.format}-${pass.barcode?.message}`} current={pass.barcode} onUse={(code) => applyBarcode(index, code)} /><div className="pass-actions">{walletAvailable && <AddToWallet importText={importText} fallbackTimeZone={pass.timeZone ?? "UTC"} />}{development && <button className="text-button" onClick={async () => {
             const { mapToPassJson } = await import("@/lib/pass/map");
             const json = mapToPassJson(pass, { passTypeIdentifier: "pass.preview.unconfigured", teamIdentifier: "UNCONFIGURED", serialNumber: crypto.randomUUID(), source: result.value.source });
             const url = URL.createObjectURL(new Blob([JSON.stringify(json, null, 2)], { type: "application/json" }));

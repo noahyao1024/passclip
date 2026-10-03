@@ -29,7 +29,7 @@ The [macOS CI run for `d1b39da`](https://github.com/noahyao1024/passclip/actions
 3. Check the website on actual iPhone Safari: paste/files, clipboard, timezone picker, every preview, front/back/link taps, light/dark and narrow layout. Also check native import/share, Dynamic Type and VoiceOver.
 4. Download Apple's official Add to Apple Wallet badge (this means accepting Apple's license) and put the two SVG files in `public/wallet/` as its README describes; the build switches to the badge automatically. Semantic tags, relevance keys and image sizes were checked against Apple's docs and done (D13, D14).
 5. Before hosting for users, add a trusted shared ingress per-IP rate limit. The development guard is process-wide, 30 requests/minute across both routes, and deliberately ignores spoofable forwarding headers; it is insufficient for production multi-instance hosting. Use final pass branding and a release app icon before launch.
-6. After M2/device acceptance, continue the barcode screenshot helper and calendar work from SPEC; screenshot extraction, saved library/accounts and release packaging are not implemented by this prototype.
+6. Milestone 3 (barcode helper) is done (D15); check it on a real iPhone with a real ticket screenshot. Next: Milestone 4 (calendar), then schema v1.1 for the iOS 27 barcode types (format strings checked in D15). Saved library/accounts and release packaging are not implemented by this prototype.
 
 ## Framework/environment notes
 

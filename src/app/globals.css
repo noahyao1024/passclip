@@ -25,7 +25,7 @@ button, a, summary, select { -webkit-tap-highlight-color: transparent; }
 button, summary { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 a { color: var(--signal); text-underline-offset: 3px; }
-button:focus-visible, a:focus-visible, summary:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid var(--signal); outline-offset: 4px; }
+button:focus-visible, a:focus-visible, summary:focus-visible, textarea:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--signal); outline-offset: 4px; }
 h1, h2, h3, p { margin: 0; }
 h1, h2, .brand { font-family: var(--font-display), -apple-system, system-ui, sans-serif; }
 h2 { font-size: 27px; font-weight: 650; letter-spacing: -.045em; line-height: 1.15; }
@@ -198,3 +198,27 @@ textarea::placeholder { color: var(--muted); opacity: 1; }
 .small-clip, .brand-mark { display: inline-flex; vertical-align: middle; }
 .results-empty > span > svg { margin-inline: auto; }
 .pass-back a { position: relative; z-index: 1; }
+
+/* Barcode helper (Milestone 3) */
+.barcode-helper { margin-top: 14px; padding: 14px; border: 1px dashed var(--border); border-radius: 4px; background: var(--surface); font-size: 13px; transition: border-color .15s, box-shadow .15s; }
+.barcode-helper.is-dragging { border-color: var(--stub); box-shadow: 0 0 0 3px var(--stub); }
+.barcode-helper-intro { color: var(--muted); margin-bottom: 10px; }
+.barcode-helper-toggle { font-size: 13px; }
+.barcode-helper-toggle + div:not([hidden]) { margin-top: 10px; }
+.barcode-helper-status { min-height: 0; margin-top: 8px; color: var(--signal); font-size: 12px; }
+.barcode-helper-status:empty { margin: 0; }
+.barcode-helper .error-text { padding: 8px 0 0; }
+.decoded-codes { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 10px; }
+.decoded-code { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--border); border-radius: 3px; background: var(--input); }
+.decoded-code.from-json { border-style: dashed; }
+.decoded-source { font-size: 11px; color: var(--muted); }
+.decoded-code code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.decoded-code .button, .decoded-code .text-button { justify-self: start; }
+.decoded-match { font-size: 12px; color: var(--signal); }
+.barcode-helper-note { margin-top: 10px; font-size: 12px; color: var(--foreground); }
+.typed-code { margin-top: 12px; }
+.typed-code summary { color: var(--signal); font-size: 12px; }
+.typed-code-warning { margin: 8px 0 4px; font-size: 12px; color: var(--error); }
+.typed-code select, .typed-code input { display: block; width: 100%; padding: 9px 12px; background: var(--input); color: var(--foreground); border: 1px solid var(--border); border-radius: 3px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; }
+.typed-code .button { margin-top: 10px; }
+.barcode-notice { color: var(--signal); font-size: 13px; }
