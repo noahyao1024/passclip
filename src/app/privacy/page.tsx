@@ -59,6 +59,12 @@ export default function PrivacyPage() {
         contact Google Fonts.
       </p>
 
+      <h2>Calendar files</h2>
+      <p>
+        Choosing Add to calendar sends that pass to the server, which turns it
+        into a calendar file and sends it straight back. The server doesn’t
+        store the pass or log its contents.
+      </p>
       <h2>Wallet downloads and native previews</h2>
       <p>
         When signing is configured, choosing Add to Apple Wallet sends that

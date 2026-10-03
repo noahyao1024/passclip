@@ -8,6 +8,8 @@ import type { Warning } from "@/lib/import/notices";
 import { layoutPass } from "@/lib/pass/fields";
 import type { DecodedCode } from "@/lib/barcode/decode";
 import { withBarcode } from "@/lib/import/edit";
+import { offersCalendar } from "@/lib/calendar/ics";
+import { AddToCalendar } from "./AddToCalendar";
 import { AddToWallet } from "./AddToWallet";
 import { BarcodeHelper } from "./BarcodeHelper";
 import { PassPreview } from "./PassPreview";
@@ -170,7 +172,7 @@ export default function DropSite({ prompt, walletAvailable = false, development 
           const { needsTimeZone: _needsTimeZone, ...payload } = pass;
           void _needsTimeZone;
           const importText = JSON.stringify({ schemaVersion: "1.0", source: result.value.source, passes: [payload] });
-          return <article className="pass-result" key={`${index}-${pass.type}`}><div className="pass-result-heading"><span>Pass {index + 1}</span><h3>{pass.title}</h3></div><PassPreview pass={pass} layout={layout} /><Warnings warnings={warnings} /><BarcodeHelper key={`${index}-${pass.barcode?.format}-${pass.barcode?.message}`} current={pass.barcode} onUse={(code) => applyBarcode(index, code)} /><div className="pass-actions">{walletAvailable && <AddToWallet importText={importText} fallbackTimeZone={pass.timeZone ?? "UTC"} />}{development && <button className="text-button" onClick={async () => {
+          return <article className="pass-result" key={`${index}-${pass.type}`}><div className="pass-result-heading"><span>Pass {index + 1}</span><h3>{pass.title}</h3></div><PassPreview pass={pass} layout={layout} /><Warnings warnings={warnings} /><BarcodeHelper key={`${index}-${pass.barcode?.format}-${pass.barcode?.message}`} current={pass.barcode} onUse={(code) => applyBarcode(index, code)} /><div className="pass-actions">{walletAvailable && <AddToWallet importText={importText} fallbackTimeZone={pass.timeZone ?? "UTC"} />}{offersCalendar(pass) && <AddToCalendar importText={importText} fallbackTimeZone={pass.timeZone ?? "UTC"} />}{development && <button className="text-button" onClick={async () => {
             const { mapToPassJson } = await import("@/lib/pass/map");
             const json = mapToPassJson(pass, { passTypeIdentifier: "pass.preview.unconfigured", teamIdentifier: "UNCONFIGURED", serialNumber: crypto.randomUUID(), source: result.value.source });
             const url = URL.createObjectURL(new Blob([JSON.stringify(json, null, 2)], { type: "application/json" }));

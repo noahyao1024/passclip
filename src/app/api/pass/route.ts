@@ -1,4 +1,5 @@
 import { buildPass, requireSigning } from "@/lib/pass/build";
+import { fileSlug } from "@/lib/server/filename";
 import { allowRequest, apiError, readImportRequest, RequestProblem } from "@/lib/server/import-request";
 export const runtime = "nodejs";
 export async function POST(request: Request) {
@@ -11,7 +12,6 @@ export async function POST(request: Request) {
     let config;
     try { config = requireSigning(process.env); } catch { throw new RequestProblem("Pass signing isn't set up yet.", 503); }
     const buffer = await buildPass(pass, config, { source: result.value.source, publicBaseUrl: process.env.PUBLIC_BASE_URL });
-    const slug = pass.title.normalize("NFKD").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "passclip";
-    return new Response(new Uint8Array(buffer), { headers: { "Content-Type": "application/vnd.apple.pkpass", "Content-Disposition": `attachment; filename="${slug}.pkpass"`, "Cache-Control": "no-store" } });
+    return new Response(new Uint8Array(buffer), { headers: { "Content-Type": "application/vnd.apple.pkpass", "Content-Disposition": `attachment; filename="${fileSlug(pass.title)}.pkpass"`, "Cache-Control": "no-store" } });
   } catch (error) { return apiError(error); }
 }
