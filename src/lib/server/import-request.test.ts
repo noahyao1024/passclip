@@ -27,6 +27,14 @@ describe("server request validation", () => {
     }
     await expect(readImportRequest(request(body, { "Content-Type": "application/x-www-form-urlencoded", "Sec-Fetch-Site": "cross-site" }))).rejects.toMatchObject({ status: 403 });
   });
+  it("trusts the browser's same-origin verdict even when Next sees its own address differently", async () => {
+    // Next reports localhost when the server listens on 127.0.0.1, so the real Origin can't match.
+    const local = new Request("http://localhost:3100/api/pass", { method: "POST", headers: { "Content-Type": "application/json", Origin: "http://127.0.0.1:3100", "Sec-Fetch-Site": "same-origin" }, body: JSON.stringify({ text }) });
+    expect((await readImportRequest(local)).result.ok).toBe(true);
+    const crossSite = new Request("http://localhost:3100/api/pass", { method: "POST", headers: { "Content-Type": "application/json", Origin: "http://127.0.0.1:3100", "Sec-Fetch-Site": "same-site" }, body: JSON.stringify({ text }) });
+    await expect(readImportRequest(crossSite)).rejects.toMatchObject({ status: 403 });
+  });
+
   it("rejects cross-origin, unsupported types, invalid indices and streamed oversize bodies", async () => {
     await expect(readImportRequest(request(JSON.stringify({ text }), { "Content-Type": "application/json", Origin: "https://other.example" }))).rejects.toMatchObject({ status: 403 });
     await expect(readImportRequest(request(text, { "Content-Type": "text/plain" }))).rejects.toMatchObject({ status: 415 });

@@ -5,16 +5,17 @@ import type { ProcessResult } from "../import/process";
 export class RequestProblem extends Error {
   constructor(message: string, public status = 400) { super(message); }
 }
-async function limitedText(request: Request) {
-  if (Number(request.headers.get("content-length")) > MAX_INPUT_BYTES) throw new RequestProblem("This import is over 256 KB.", 413);
+/** Reads the body as text, stopping as soon as it's over `maxBytes`. */
+export async function readLimitedText(request: Request, maxBytes: number, tooLarge: string) {
+  if (Number(request.headers.get("content-length")) > maxBytes) throw new RequestProblem(tooLarge, 413);
   const reader = request.body?.getReader();
-  if (!reader) throw new RequestProblem("Send the JSON from your AI reply.");
+  if (!reader) return "";
   const chunks: Uint8Array[] = []; let size = 0;
   try {
     while (true) {
       const { value, done } = await reader.read(); if (done) break;
       size += value.byteLength;
-      if (size > MAX_INPUT_BYTES) { await reader.cancel(); throw new RequestProblem("This import is over 256 KB.", 413); }
+      if (size > maxBytes) { await reader.cancel(); throw new RequestProblem(tooLarge, 413); }
       chunks.push(value);
     }
   } finally { reader.releaseLock(); }
@@ -22,7 +23,9 @@ async function limitedText(request: Request) {
   for (const chunk of chunks) { joined.set(chunk, offset); offset += chunk.length; }
   return new TextDecoder().decode(joined);
 }
-export async function readImportRequest(request: Request): Promise<{ result: ProcessResult; index: number }> {
+
+/** Refuses requests sent from other websites. */
+export function requireSameSite(request: Request, message = "Open Passclip to send this import.") {
   const origin = request.headers.get("origin");
   const fetchSite = request.headers.get("sec-fetch-site");
   const allowedOrigins = new Set([new URL(request.url).origin]);
@@ -31,15 +34,21 @@ export async function readImportRequest(request: Request): Promise<{ result: Pro
   if (process.env.PUBLIC_BASE_URL) {
     try { allowedOrigins.add(new URL(process.env.PUBLIC_BASE_URL).origin); } catch { /* Invalid optional configuration isn't a new allowed origin. */ }
   }
-  // Referrer-Policy: no-referrer makes Chromium serialize a form POST's Origin
-  // as "null". Accept that only with the browser-controlled same-origin metadata;
-  // cross-site forms and opaque origins without that evidence still fail.
-  const opaqueSameOrigin = origin === "null" && fetchSite === "same-origin";
-  if ((fetchSite && fetchSite !== "same-origin" && fetchSite !== "none")
-    || (origin && !allowedOrigins.has(origin) && !opaqueSameOrigin)) {
-    throw new RequestProblem("Open Passclip to send this import.", 403);
+  // Sec-Fetch-Site is set by the browser and pages can't change it, so "same-origin" settles it.
+  // The Origin can't: Referrer-Policy: no-referrer makes Chromium send a form POST's Origin as
+  // "null", and Next's view of its own address may differ from the browser's (it says localhost
+  // when the server listens on 127.0.0.1). Without Sec-Fetch-Site (older browsers, the iOS app),
+  // the Origin must be this site's; cross-site requests and opaque origins still fail.
+  if (fetchSite === "same-origin") return;
+  if ((fetchSite && fetchSite !== "none") || (origin && !allowedOrigins.has(origin))) {
+    throw new RequestProblem(message, 403);
   }
-  const body = await limitedText(request);
+}
+
+export async function readImportRequest(request: Request): Promise<{ result: ProcessResult; index: number }> {
+  requireSameSite(request);
+  if (!request.body) throw new RequestProblem("Send the JSON from your AI reply.");
+  const body = await readLimitedText(request, MAX_INPUT_BYTES, "This import is over 256 KB.");
   const type = request.headers.get("content-type")?.split(";")[0].trim();
   let text: string, fallbackTimeZone = "UTC", index = 0;
   if (type === "application/x-www-form-urlencoded") {
@@ -130,7 +139,7 @@ export function errorResponse(request: Request | undefined, errors: { message: s
   return Response.json({ errors }, { status, headers: { "Cache-Control": "no-store" } });
 }
 
-export function apiError(error: unknown, request?: Request): Response {
-  const problem = error instanceof RequestProblem ? error : new RequestProblem("Couldn't make this file. Try again in a moment.", 500);
+export function apiError(error: unknown, request?: Request, fallback = "Couldn't make this file. Try again in a moment."): Response {
+  const problem = error instanceof RequestProblem ? error : new RequestProblem(fallback, 500);
   return errorResponse(request, [{ message: problem.message }], problem.status);
 }

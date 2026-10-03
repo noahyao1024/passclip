@@ -13,7 +13,8 @@ export default function PrivacyPage() {
       <h1>Your tickets stay with you.</h1>
       <p>
         Passclip currently makes previews in your browser. There are no accounts,
-        stored passes, or third-party trackers.
+        stored passes, or third-party trackers. The only things Passclip stores
+        are files you choose to attach to a pass.
       </p>
 
       <h2>What happens to your import</h2>
@@ -71,8 +72,24 @@ export default function PrivacyPage() {
         pass to the server to build and sign a Wallet file. The server does not
         store the pass or log its contents. Native app previews also send your
         import to the server for validation; the app explains this before you
-        send it. Signing keys remain on the server. Attachment files are not
-        uploaded or stored.
+        send it. Signing keys remain on the server. Files you attach are
+        linked from the pass, never put inside it.
+      </p>
+
+      <h2>Files you attach</h2>
+      <p>
+        When you attach a PDF or photo to a pass, your browser uploads it
+        straight to our storage provider, under a long random link. That link
+        goes on the back of the pass, so anyone who has the pass, or the link,
+        can open the file. Passclip doesn’t keep a list of files or who
+        uploaded them. Like any host, the storage provider receives connection
+        information, such as your IP address, when a file is uploaded or opened.
+      </p>
+      <p>
+        After an upload you get a delete link, once. Passclip doesn’t keep it,
+        so save it if you might want to delete the file later. Opening it and
+        confirming deletes the file; a copy cached along the way can take a few
+        minutes to disappear.
       </p>
     </main>
   );

@@ -240,6 +240,7 @@ The owner does steps 1 to 3 in the Apple Developer website and Keychain Access o
 - Anyone who has the pass can open these links. Say so next to the upload control.
 - After upload, show a delete link once.
 - Never put attachment files inside the `.pkpass`.
+- Built (D19): the browser uploads straight to the bucket with a short-lived signed link from `/api/attachments` (Vercel Functions accept at most 4.5 MB). Nothing about an upload is stored; the delete link carries a secret after `#`, and `/delete-file` deletes the file when the person confirms. Uploads stay off until the `STORAGE_*` settings are set.
 
 ## 10. UI and design direction
 
