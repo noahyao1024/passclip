@@ -57,4 +57,22 @@ describe("server request validation", () => {
     expect(allowRequest(request(text), now)).toBe(false);
     expect(allowRequest(request(text), now + 60001)).toBe(true);
   });
+  it("gives each visitor their own budget when the host sets a header visitors can't fake", () => {
+    const now = Date.now() + 10 * 60000;
+    const from = (ip: string, header = "x-vercel-forwarded-for") => request(text, { "Content-Type": "application/json", [header]: ip });
+    const vercel = { VERCEL: "1" };
+    for (let i = 0; i < 30; i++) expect(allowRequest(from("203.0.113.1"), now, vercel)).toBe(true);
+    expect(allowRequest(from("203.0.113.1"), now, vercel)).toBe(false);
+    expect(allowRequest(from("203.0.113.2"), now, vercel)).toBe(true);
+    // Another host names its own trusted header.
+    const custom = { RATE_LIMIT_IP_HEADER: "CF-Connecting-IP" };
+    for (let i = 0; i < 30; i++) expect(allowRequest(from("198.51.100.7", "cf-connecting-ip"), now, custom)).toBe(true);
+    expect(allowRequest(from("198.51.100.7", "cf-connecting-ip"), now, custom)).toBe(false);
+    expect(allowRequest(from("198.51.100.8", "cf-connecting-ip"), now, custom)).toBe(true);
+  });
+  it("ignores forwarding headers the host isn't known to set, so they can't buy extra requests", () => {
+    const now = Date.now() + 20 * 60000;
+    for (let i = 0; i < 30; i++) expect(allowRequest(request(text, { "Content-Type": "application/json", "x-forwarded-for": `192.0.2.${i}` }), now, {})).toBe(true);
+    expect(allowRequest(request(text, { "Content-Type": "application/json", "x-forwarded-for": "192.0.2.99" }), now, {})).toBe(false);
+  });
 });

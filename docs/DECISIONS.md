@@ -101,3 +101,8 @@ Apple's Add to Apple Wallet guidelines (checked 2026-10-03): use only Apple's ba
 - Codabar codes keep their start and stop letters (like "A40156B"): they're part of the code's data, the decoder returns them, and the preview encoder needs them. Whether Wallet expects them in the message needs a check on an iPhone with iOS 27.
 - The prompt tells the AI to use the code type the content names, and otherwise QR for square codes and Code 128 for bar codes, with a warning to check it. A screenshot in the barcode helper settles the type.
 - The signing smoke test now covers every example in the folder, so new fixtures are signed automatically.
+
+## D18: Rate limits per visitor, using only headers visitors can't fake (2026-10-03)
+- The first limiter gave the whole site one budget of 30 requests a minute, so it couldn't be fooled by a forged IP address. But one visitor sending 31 requests a minute would have locked everyone else out, and normal traffic above 30 passes a minute would have been refused.
+- Now each visitor gets 30 a minute, keyed by an IP address only the host can set. Vercel's docs (checked 2026-10-03) say it overwrites `X-Forwarded-For` to prevent IP spoofing, and `x-vercel-forwarded-for` carries the same value even behind another proxy. So on Vercel (`VERCEL=1`) the limiter uses that header automatically. Other hosts name theirs in `RATE_LIMIT_IP_HEADER`, such as `CF-Connecting-IP` behind Cloudflare. Without either, everyone shares one budget as before, because any other header could be forged.
+- Counts live in each server instance's memory, and old entries are dropped once 10,000 visitors are tracked. For one limit shared across instances, add a rate-limit rule at the host.
