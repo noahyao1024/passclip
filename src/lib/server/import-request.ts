@@ -72,7 +72,47 @@ export function allowRequest(request: Request, now = Date.now()): boolean {
   if (!window || now >= window.expires) { window = { count: 0, expires: now + 60_000 }; windows.set(key, window); }
   return ++window.count <= 30;
 }
-export function apiError(error: unknown): Response {
-  const problem = error instanceof RequestProblem ? error : new RequestProblem("Couldn't make this pass. Check the signing setup and try again.", 500);
-  return Response.json({ errors: [{ message: problem.message }] }, { status: problem.status, headers: { "Cache-Control": "no-store" } });
+/** Browser forms navigate to the response, so they get a readable page; the iOS app gets JSON. */
+function isFormRequest(request?: Request) {
+  return request?.headers.get("content-type")?.split(";")[0].trim() === "application/x-www-form-urlencoded";
+}
+
+const escapeHtml = (text: string) =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+function errorPage(errors: { message: string }[]): string {
+  const items = errors.map((error) => `<li>${escapeHtml(error.message)}</li>`).join("");
+  return `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Fix this, then try again · Passclip</title></head>
+<body>
+<main>
+<h1>Fix this, then try again</h1>
+<ul>${items}</ul>
+<p>Use your browser’s Back button to return to your passes, or <a href="/">start again on Passclip</a>.</p>
+</main>
+</body>
+</html>
+`;
+}
+
+/** Errors as JSON for the app, or as a plain page for browser forms. Never includes request content. */
+export function errorResponse(request: Request | undefined, errors: { message: string }[], status: number): Response {
+  if (isFormRequest(request)) {
+    return new Response(errorPage(errors), {
+      status,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        // The page has no scripts, styles or images, so it allows none.
+        "Content-Security-Policy": "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      },
+    });
+  }
+  return Response.json({ errors }, { status, headers: { "Cache-Control": "no-store" } });
+}
+
+export function apiError(error: unknown, request?: Request): Response {
+  const problem = error instanceof RequestProblem ? error : new RequestProblem("Couldn't make this file. Try again in a moment.", 500);
+  return errorResponse(request, [{ message: problem.message }], problem.status);
 }
