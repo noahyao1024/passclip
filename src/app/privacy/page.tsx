@@ -20,8 +20,9 @@ export default function PrivacyPage() {
       <p>
         The AI reply you paste, drop, or choose as a file is read and checked in
         your browser. Names, ticket details, links, and barcode text are used to
-        draw the preview. We do not send that content to a Passclip server, save
-        it in browser storage, or include it in logs.
+        draw the preview. Previewing on this website does not send that content
+        to a Passclip server, save it in browser storage, or include it in logs.
+        Choosing a Wallet download sends the selected pass for signing.
       </p>
       <p>
         The app keeps your input in memory while you work. Clear it when you are
@@ -52,11 +53,14 @@ export default function PrivacyPage() {
         contact Google Fonts.
       </p>
 
-      <h2>Previews for now</h2>
+      <h2>Wallet downloads and native previews</h2>
       <p>
-        Pass signing is not set up yet. This version does not upload tickets,
-        generate signed Wallet passes, or store attachment files. We will update
-        this page when those features change what is processed.
+        When signing is configured, choosing Add to Apple Wallet sends that
+        pass to the server to build and sign a Wallet file. The server does not
+        store the pass or log its contents. Native app previews also send your
+        import to the server for validation; the app explains this before you
+        send it. Signing keys remain on the server. Attachment files are not
+        uploaded or stored.
       </p>
     </main>
   );

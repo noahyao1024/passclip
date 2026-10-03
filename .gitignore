@@ -53,3 +53,8 @@ next-env.d.ts
 # browser test output
 /test-results/
 /playwright-report/
+
+# native project generated from ios/project.yml
+/ios/Generated/
+/ios/*.xcodeproj/
+/ios/DerivedData/

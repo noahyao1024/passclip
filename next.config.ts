@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  outputFileTracingIncludes: { "/api/pass": ["./pass-models/default.pass/*.png"] },
   turbopack: {
     rules: {
       "*.txt": {

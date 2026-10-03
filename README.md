@@ -1,6 +1,6 @@
 # Passclip
 
-Passclip turns tickets, bookings, memberships and coupons into Apple Wallet passes. Milestone 1 provides the drop site: paste the JSON from any AI chat and check all five pass styles in a live preview. Signed Wallet downloads arrive in Milestone 2.
+Passclip turns tickets, bookings, memberships and coupons into Apple Wallet passes. Paste the JSON from any AI chat and check all five pass styles in a live preview. The signing backend enables Wallet downloads when configured with Apple certificates, and a native iOS prototype is available under `ios/`.
 
 ## What's inside
 
@@ -48,7 +48,7 @@ The heading font is self-hosted with its license. The AI prompt comes directly f
 
 Milestones 0 and 1 don't need anything from Apple.
 
-## Before Milestone 2 (real Wallet passes)
+## Configure real Wallet passes
 
 You need:
 
@@ -61,3 +61,11 @@ SPEC §6 shows how to turn these into the values in `.env.local`. Then run `npm 
 ## Try the AI prompt today
 
 Copy everything in `prompts/extract-to-passclip.txt`, paste it into Claude, ChatGPT or Gemini, then paste a real ticket email under it. Compare the JSON you get with the files in `examples/`.
+
+## Native iOS prototype and signing backend
+
+The SwiftUI app and Share Extension are under [`ios/`](ios/README.md). Generate the Xcode project on a Mac using the included XcodeGen specification; the macOS CI workflow builds and tests it. Native build/device acceptance remains pending.
+
+M2's backend exposes `/api/import` for native validation and `/api/pass` for signed Wallet downloads. The website enables its navigation form only when signing configuration passes inspection. Set `PUBLIC_BASE_URL` to the public site address when running behind a proxy. `npm run gen:images` refreshes placeholder art; after `npm run build`, `npm run smoke:signing` exercises all six examples and a real browser download using temporary test certificates. It requires OpenSSL, Python, a Chromium executable, and a free port 3101. Test certificates are never suitable for real Wallet passes.
+
+Genuine Apple certificates, device validation, official web badge artwork/current semantic guidance and production ingress rate limiting remain prerequisites for shipping M2.

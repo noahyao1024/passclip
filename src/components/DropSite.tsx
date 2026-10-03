@@ -21,7 +21,7 @@ function Warnings({ warnings }: { warnings: Warning[] }) {
   </>;
 }
 
-export default function DropSite({ prompt }: { prompt: string }) {
+export default function DropSite({ prompt, walletAvailable = false, development = false }: { prompt: string; walletAvailable?: boolean; development?: boolean }) {
   const [text, setText] = useState("");
   const [email, setEmail] = useState("");
   const [result, setResult] = useState<Result | null>(null);
@@ -145,11 +145,20 @@ export default function DropSite({ prompt }: { prompt: string }) {
       {needsTimeZone && <div className="zone-picker"><label htmlFor="fallback-zone">Check the time zone</label><p>Some times arrived without a time zone. We used your browser’s zone; choose where the event or departure happens.</p><select id="fallback-zone" value={selectedZone} onChange={(event) => { setTimeZone(event.target.value); setProcessing(true); }}>{zones.map((zone) => <option key={zone} value={zone}>{zone.replaceAll("_", " ")}</option>)}</select></div>}
       {result?.ok && result.value.passes.length === 0 && <div className="results-empty"><p>No passes found</p><p>Ask your AI to extract a ticket, booking, membership or coupon, then paste its reply here.</p></div>}
       {result?.ok && result.value.passes.length > 0 && <>
-        <p className="preview-note">Preview only · Pass signing isn’t set up yet. Check every detail against your original ticket.</p>
+        <p className="preview-note">{!walletAvailable ? "Preview only · Pass signing isn’t set up yet. " : "Adding to Wallet sends the selected pass to our signing server. "}Check every detail against your original ticket.</p>
         <div className="pass-results">{result.value.passes.map((pass, index) => {
           const layout = layoutPass(pass, { source: result.value.source });
           const warnings = [...result.warnings.filter((warning) => warning.pass === index), ...layout.warnings];
-          return <article className="pass-result" key={`${index}-${pass.type}`}><div className="pass-result-heading"><span>Pass {index + 1}</span><h3>{pass.title}</h3></div><PassPreview pass={pass} layout={layout} /><Warnings warnings={warnings} /><div className="pass-actions"><button className="button button-secondary" disabled>Add to Apple Wallet</button>{pass.start && pass.calendar?.add !== false && <button className="button button-secondary" disabled>Add to calendar</button>}</div><p className="action-note">Wallet downloads{pass.start && pass.calendar?.add !== false ? " and calendar files" : ""} are coming in a later milestone.</p></article>;
+          const { needsTimeZone: _needsTimeZone, ...payload } = pass;
+          void _needsTimeZone;
+          const importText = JSON.stringify({ schemaVersion: "1.0", source: result.value.source, passes: [payload] });
+          return <article className="pass-result" key={`${index}-${pass.type}`}><div className="pass-result-heading"><span>Pass {index + 1}</span><h3>{pass.title}</h3></div><PassPreview pass={pass} layout={layout} /><Warnings warnings={warnings} /><div className="pass-actions"><form method="post" action="/api/pass" target="_self"><input type="hidden" name="import" value={importText} /><input type="hidden" name="fallbackTimeZone" value={pass.timeZone ?? "UTC"} /><button className="button button-secondary" disabled={!walletAvailable}>Add to Apple Wallet</button></form>{pass.start && pass.calendar?.add !== false && <button className="button button-secondary" disabled>Add to calendar</button>}{development && <button className="text-button" onClick={async () => {
+            const { mapToPassJson } = await import("@/lib/pass/map");
+            const json = mapToPassJson(pass, { passTypeIdentifier: "pass.preview.unconfigured", teamIdentifier: "UNCONFIGURED", serialNumber: crypto.randomUUID(), source: result.value.source });
+            const url = URL.createObjectURL(new Blob([JSON.stringify(json, null, 2)], { type: "application/json" }));
+            const link = document.createElement("a"); link.href = url; link.download = "pass.json"; link.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }}>Download pass.json</button>}</div><p className="action-note">{walletAvailable ? "On a computer, send the downloaded file to your iPhone with AirDrop, Messages or email." : "Pass signing isn't set up yet."}{pass.start && pass.calendar?.add !== false && " Calendar files are coming in a later milestone."}</p></article>;
         })}</div>
       </>}
     </section>

@@ -1,29 +1,37 @@
-# Handoff: Milestone 1 implementation complete (2026-10-03)
+# Handoff: signing backend and native iOS prototype (2026-10-03)
 
-Continue on `milestone-1`. Read `CLAUDE.md`, `docs/SPEC.md`, `docs/DECISIONS.md` and `docs/DESIGN.md` first. The original parser handoff is now implemented through the drop site. This note remains because real iPhone Safari acceptance has not yet been checked.
+Continue on `milestone-1`. Read `CLAUDE.md`, `docs/SPEC.md`, `docs/DECISIONS.md` and `ios/README.md` first. M1's implementation is complete; real iPhone Safari acceptance is still pending. M2's backend is implemented and the requested native prototype is scaffolded. Genuine Apple Wallet and native device acceptance remain external checks.
 
 ## Implemented
 
-- Shared `processImport`: parse → clean → validate → normalize, preserving barcodes and explicit offsets, with readable errors and warnings for every fix. Timezone picker, DST warnings, date-only expiry and accessible colors.
-- Pure `layoutPass` front/back fields for all five types, caps/overflow, escaped HTTPS attachments, unique keys and five normalized snapshots. Boarding departure time is on the front; full date/time and the correct zone are on the back, as agreed with the owner.
-- Paste/file/drop interface, debounced previews, quiet applied fixes, AI warnings, error-location focus, exact Copy AI prompt with optional browser-local email, all four barcode formats, reversible preview flip and usable back links. Wallet downloads, screenshot decoding and calendar files are visibly unavailable until their milestones.
-- Privacy page, per-document nonce CSP, dynamic Next 16 rendering, security headers, local licensed display font and metadata icon. No ticket content is transmitted or stored by the app.
+- Browser import pipeline and all five previews: recovery warnings, readable validation, authoritative offsets, timezone selection, accessible colors, exact barcodes, shared front/back field layouts, paste/file/drop, Copy AI prompt, privacy page and strict nonce CSP. Boarding departure time is on the front; full departure date/time and zone are on the back.
+- Pure `mapToPassJson` shares those layouts, emits exact barcodes and encoding, relevance/expiry, grouping and coordinates. The server signing builder uses UUIDs, passkit-generator 3.6.1 and six reproducible placeholder PNGs. Deployment tracing includes the images.
+- Node POST `/api/pass` revalidates browser forms/native JSON and returns an uncached pkpass attachment. Browser downloads use real navigation, never fetch/blob. `/api/import` returns the same normalized values, layouts and warnings for native previews. Both stream-limit the request to 256 KB, reject cross-site browser requests and use a bounded process-local rate guard. No request/pass contents are logged or stored.
+- Signing inspection enables the browser Add action; missing/invalid credentials leave previews available. Development builds offer unsigned `pass.json` debugging. `PUBLIC_BASE_URL` allows the configured canonical origin behind a proxy. With `no-referrer`, Chromium form Origin is `null`; it requires `Sec-Fetch-Site: same-origin` rather than accepting arbitrary opaque origins.
+- SwiftUI iOS 17+ app, JSON/text import, exact shared prompt resource, native barcode previews, back links, warnings/timezone selection, Apple's `PKAddPassButton`/Wallet sheet and a Share Extension. The app sends previews to the configured HTTPS backend, says so before sending, uses ephemeral networking and refuses redirects. The App Group stores only the server address. Source/project generation/tests are in `ios/`; macOS CI is in `.github/workflows/ios.yml`.
 
-## Verified
+## Verified in the Linux cloud machine
 
-`npm run typecheck && npm run lint && npm test`, `npm run validate:examples`, `npm run build`, and `npm run test:browser` pass: 236 unit/contract tests, six examples and 14 production Chromium cases. Browser coverage includes desktop/light and 360 px/dark, clipboard exactness/fallback, file/drop limits and read races, all fixtures/encoders, keyboard use, reduced motion, back links and strict CSP without browser errors. Browser outputs in `test-results/` are ignored.
+- `npm run typecheck && npm run lint && npm test`: 259 tests in 18 files pass.
+- `npm run validate:examples`: six valid fixtures pass.
+- `npm run build`: production build passes.
+- `npm run test:browser`: all 14 desktop/light and 360 px/dark Chromium cases pass.
+- `npm run smoke:signing`: all six native preview/sign requests plus a real browser form download pass using disposable synthetic certificates. The unit package tests independently verify manifest hashes, detached CMS signatures against the synthetic CA, and exported fields/barcodes against the mapping. Library metadata dates serialize to UTC without changing instants; displayed field dates retain their original offsets.
 
-A final read-only review found no blocking correctness or security issues. Installing Playwright WebKit was attempted, but both official download hosts (`cdn.playwright.dev` and `playwright.download.prss.microsoft.com`) returned HTTP 403 “Domain forbidden”. WebKit did not run; it would still not replace the real iPhone check.
+Synthetic certificates are never suitable for real Wallet passes. No real Apple signing variables were available. This Linux machine has no Swift, Xcode or iOS SDK, so native compilation and XCTest results must be obtained from the macOS workflow. Inspect its actual result; do not infer success from the workflow file.
 
-## Next, in order
+## Remaining steps
 
-1. Check the drop site on a real iPhone in Safari: paste and file selection, Copy AI prompt, timezone picker, every fixture preview, front/back taps and attachment links, light/dark mode and narrow layout. Chromium mobile emulation does not verify Safari. Fix any reproducible issue and rerun affected checks. Delete this handoff once M1 device acceptance is complete.
-2. Start M2 from SPEC §5/§12: reuse `layoutPass` data in the pass.json mapping, signing builder, official Wallet badge and navigation POST route. Keep signing secrets server-only, inspect existing settings before requesting credentials, and use real iPhone add/scanning tests.
+1. Inspect the macOS GitHub Actions build on `milestone-1`; resolve any generator/SDK/compiler/test failure. On a Mac generate with `xcodegen generate --spec ios/project.yml --project ios`, then open the Passclip scheme. Use your own bundle IDs/App Group/development team for a physical device; the example IDs are placeholders.
+2. Provide genuine Apple signing credentials securely on the server following `.env.example` and SPEC §6; never request values in chat or commit them. Set the canonical HTTPS `PUBLIC_BASE_URL`. Run `npm run check:env`, then verify every fixture adds to Wallet and scans on a real iPhone. Synthetic crypto tests do not establish Apple trust.
+3. Check the website on actual iPhone Safari: paste/files, clipboard, timezone picker, every preview, front/back/link taps, light/dark and narrow layout. Also check native import/share, Dynamic Type and VoiceOver.
+4. Verify current Apple pass image dimensions/semantic tags and obtain official website Wallet badge artwork. Apple documentation hosts were blocked by the runtime network policy, so semantics/final web badge were deferred rather than guessed. The native control comes from Apple's SDK. Necessary domains were saved in the environment draft, which does not itself apply runtime access. GitHub's public Actions page is readable; the API host was blocked.
+5. Before hosting for users, add a trusted shared ingress per-IP rate limit. The development guard is process-wide, 30 requests/minute across both routes, and deliberately ignores spoofable forwarding headers; it is insufficient for production multi-instance hosting. Use final pass branding and a release app icon before launch.
+6. After M2/device acceptance, continue the barcode screenshot helper and calendar work from SPEC; screenshot extraction, saved library/accounts and release packaging are not implemented by this prototype.
 
-## Next.js notes
+## Framework/environment notes
 
-- Read the relevant bundled guides in `node_modules/next/dist/docs/` before changing framework code.
-- `src/proxy.ts` supplies nonce CSP in request and response headers; root layout uses `await connection()`. Preview color properties are created only after browser input, so production SSR emits no inline style attributes.
-- The native Turbopack raw text rule produced undefined in this version. `scripts/raw-text-loader.cjs` exports the original `.txt` contents at build time. Do not duplicate the prompt into component code or remove the clipboard exactness test.
-- The heading font is self-hosted with provenance/license under `src/app/fonts/`; Google Fonts was blocked in this cloud machine.
-- Browser tests need a production build first and a free port 3100. Playwright uses `/usr/bin/chromium` if installed or a bundled browser; `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can select another Chromium. Test fixture imports stay local; no Apple credentials are needed for M1.
+- Read relevant Next 16 guides in `node_modules/next/dist/docs/` before changing framework code. `src/proxy.ts` supplies nonce CSP in request/response headers; root layout uses `connection()`.
+- Turbopack's native raw text rule produced undefined in this version. `scripts/raw-text-loader.cjs` exports the original prompt. Do not duplicate it into website/app code.
+- Font provenance/license is in `src/app/fonts/`. Website preview colors are applied after browser input; production SSR emits no inline style attributes.
+- Browser tests need a production build and free port 3100; signing smoke needs free port 3101. Chromium is `/usr/bin/chromium` or `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. OpenSSL/Python are required for package tests. WebKit downloads were blocked and were not run; Chromium emulation does not replace Safari/device tests.

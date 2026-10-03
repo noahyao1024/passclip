@@ -67,3 +67,8 @@ Keep these current:
 - `npm run validate:examples`: check every `examples/*.json` against the schema (`npm test` covers the recoverable and invalid fixtures)
 - `npm run gen:types`: regenerate `src/lib/import/types.ts` and the precompiled validator (`schema-validator.generated.ts`) from the schema. A test fails if you forget.
 - `npm run check:env`: check the pass signing settings in `.env.local`. It exits with an error until they're set up.
+
+M2/native commands:
+- `npm run gen:images`: regenerate the committed neutral icon/logo model images.
+- `npm run smoke:signing`: after a production build, validate production native API calls and browser form downloads with temporary synthetic certificates (OpenSSL, Python, Chromium; port 3101). Does not prove Apple trust.
+- `ios/README.md`: XcodeGen project generation, Mac build/tests and physical-device prerequisites.

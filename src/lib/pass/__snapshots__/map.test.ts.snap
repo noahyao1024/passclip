@@ -1,0 +1,728 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`mapToPassJson > maps coupon with the exact preview fields 1`] = `
+{
+  "backgroundColor": "rgb(140, 47, 57)",
+  "coupon": {
+    "auxiliaryFields": [
+      {
+        "key": "code",
+        "label": "Code",
+        "value": "READMORE20",
+      },
+    ],
+    "backFields": [
+      {
+        "attributedValue": "<a href="https://northwind-books.example/shop">Open</a>",
+        "key": "att_1",
+        "label": "Shop online",
+        "value": "https://northwind-books.example/shop",
+      },
+      {
+        "key": "terms",
+        "label": "Terms",
+        "value": "One use per customer. Not valid on gift cards. Online and in store.",
+      },
+      {
+        "key": "source",
+        "label": "Source",
+        "value": "Imported from 20% off your next order
+hello@northwind-books.example",
+      },
+      {
+        "attributedValue": "<a href="https://passclip.example">Open</a>",
+        "key": "made_with",
+        "label": "Made with Passclip",
+        "value": "https://passclip.example",
+      },
+    ],
+    "headerFields": [],
+    "primaryFields": [
+      {
+        "key": "offer",
+        "label": "Northwind Books",
+        "value": "20% off",
+      },
+    ],
+    "secondaryFields": [
+      {
+        "dateStyle": "PKDateStyleMedium",
+        "ignoresTimeZone": true,
+        "key": "expires",
+        "label": "Expires",
+        "timeStyle": "PKDateStyleNone",
+        "value": "2026-12-31T23:59:59+09:00",
+      },
+    ],
+  },
+  "description": "Coupon from Northwind Books",
+  "expirationDate": "2026-12-31T23:59:59+09:00",
+  "foregroundColor": "rgb(255, 255, 255)",
+  "formatVersion": 1,
+  "labelColor": "rgb(244, 199, 204)",
+  "logoText": "Northwind Books",
+  "organizationName": "Northwind Books",
+  "passTypeIdentifier": "pass.com.example.test",
+  "serialNumber": "fixed-test-serial",
+  "teamIdentifier": "ABCDE12345",
+}
+`;
+
+exports[`mapToPassJson > maps event-tickets with the exact preview fields 1`] = `
+{
+  "backgroundColor": "rgb(45, 30, 74)",
+  "barcodes": [
+    {
+      "altText": "BL48213-01",
+      "format": "PKBarcodeFormatQR",
+      "message": "BL48213-01-F12-20261114",
+      "messageEncoding": "iso-8859-1",
+    },
+  ],
+  "description": "Event ticket for Jazz Night",
+  "eventTicket": {
+    "auxiliaryFields": [
+      {
+        "key": "section",
+        "label": "Section",
+        "value": "B",
+      },
+      {
+        "key": "row",
+        "label": "Row",
+        "value": "F",
+      },
+      {
+        "key": "seat",
+        "label": "Seat",
+        "value": "12",
+      },
+      {
+        "key": "entrance",
+        "label": "Entrance",
+        "value": "East door",
+      },
+    ],
+    "backFields": [
+      {
+        "key": "notes",
+        "label": "Notes",
+        "value": "Doors open 18:30. One drink order required at the bar.",
+      },
+      {
+        "attributedValue": "<a href="https://bluelantern.example/map.pdf">Open</a>",
+        "key": "att_1",
+        "label": "Venue map",
+        "value": "https://bluelantern.example/map.pdf",
+      },
+      {
+        "key": "holder_back",
+        "label": "Name",
+        "value": "Aiko Tanaka",
+      },
+      {
+        "key": "confirmation",
+        "label": "Confirmation",
+        "value": "BL-48213",
+      },
+      {
+        "key": "ticket_number",
+        "label": "Ticket number",
+        "value": "BL48213-01",
+      },
+      {
+        "currencyCode": "JPY",
+        "key": "price",
+        "label": "Price",
+        "value": 8800,
+      },
+      {
+        "key": "venue_back",
+        "label": "Venue",
+        "value": "Blue Lantern Hall",
+      },
+      {
+        "key": "address",
+        "label": "Address",
+        "value": "2-1 Example-dori, Minato-ku",
+      },
+      {
+        "key": "source",
+        "label": "Source",
+        "value": "Imported from Your tickets: Jazz Night at Blue Lantern Hall
+tickets@bluelantern.example",
+      },
+      {
+        "dateStyle": "PKDateStyleMedium",
+        "ignoresTimeZone": true,
+        "key": "received_at",
+        "label": "Received",
+        "timeStyle": "PKDateStyleShort",
+        "value": "2026-10-01T09:12:00+09:00",
+      },
+      {
+        "attributedValue": "<a href="https://passclip.example">Open</a>",
+        "key": "made_with",
+        "label": "Made with Passclip",
+        "value": "https://passclip.example",
+      },
+    ],
+    "headerFields": [
+      {
+        "dateStyle": "PKDateStyleShort",
+        "ignoresTimeZone": true,
+        "key": "date",
+        "label": "Date",
+        "timeStyle": "PKDateStyleNone",
+        "value": "2026-11-14T19:30:00+09:00",
+      },
+    ],
+    "primaryFields": [
+      {
+        "key": "title",
+        "label": "Autumn Session",
+        "value": "Jazz Night",
+      },
+    ],
+    "secondaryFields": [
+      {
+        "dateStyle": "PKDateStyleMedium",
+        "ignoresTimeZone": true,
+        "key": "starts",
+        "label": "Starts",
+        "timeStyle": "PKDateStyleShort",
+        "value": "2026-11-14T19:30:00+09:00",
+      },
+      {
+        "key": "venue",
+        "label": "Venue",
+        "value": "Blue Lantern Hall",
+      },
+    ],
+  },
+  "expirationDate": "2026-11-15T04:00:00+09:00",
+  "foregroundColor": "rgb(255, 255, 255)",
+  "formatVersion": 1,
+  "groupingIdentifier": "BL-48213",
+  "labelColor": "rgb(205, 190, 240)",
+  "logoText": "Blue Lantern Hall",
+  "organizationName": "Blue Lantern Hall",
+  "passTypeIdentifier": "pass.com.example.test",
+  "relevantDate": "2026-11-14T19:30:00+09:00",
+  "relevantDates": [
+    {
+      "endDate": "2026-11-14T22:00:00+09:00",
+      "startDate": "2026-11-14T16:30:00+09:00",
+    },
+  ],
+  "serialNumber": "fixed-test-serial",
+  "teamIdentifier": "ABCDE12345",
+}
+`;
+
+exports[`mapToPassJson > maps flight with the exact preview fields 1`] = `
+{
+  "backgroundColor": "rgb(15, 44, 76)",
+  "barcodes": [
+    {
+      "altText": "Q7XK2P",
+      "format": "PKBarcodeFormatPDF417",
+      "message": "M1TANAKA/AIKO MS EQ7XK2P HNDCDGZQ 0101 337Y034K0042 100",
+      "messageEncoding": "iso-8859-1",
+    },
+  ],
+  "boardingPass": {
+    "auxiliaryFields": [
+      {
+        "key": "number",
+        "label": "Flight",
+        "value": "ZQ 101",
+      },
+      {
+        "key": "seat",
+        "label": "Seat",
+        "value": "34K",
+      },
+      {
+        "key": "group",
+        "label": "Group",
+        "value": "3",
+      },
+      {
+        "dateStyle": "PKDateStyleNone",
+        "ignoresTimeZone": true,
+        "key": "boarding",
+        "label": "Boarding",
+        "timeStyle": "PKDateStyleShort",
+        "value": "2026-12-03T09:45:00+09:00",
+      },
+    ],
+    "backFields": [
+      {
+        "key": "notes",
+        "label": "Notes",
+        "value": "Bag drop closes 60 minutes before departure.",
+      },
+      {
+        "attributedValue": "<a href="https://skylane.example/manage/Q7XK2P">Open</a>",
+        "key": "att_1",
+        "label": "Manage booking",
+        "value": "https://skylane.example/manage/Q7XK2P",
+      },
+      {
+        "key": "holder_back",
+        "label": "Name",
+        "value": "TANAKA/AIKO MS",
+      },
+      {
+        "key": "confirmation",
+        "label": "Confirmation",
+        "value": "Q7XK2P",
+      },
+      {
+        "key": "ticket_number",
+        "label": "Ticket number",
+        "value": "999-2401234567",
+      },
+      {
+        "key": "from_back",
+        "label": "From",
+        "value": "Tokyo Haneda",
+      },
+      {
+        "key": "departure_terminal",
+        "label": "Departure terminal",
+        "value": "3",
+      },
+      {
+        "key": "to_back",
+        "label": "To",
+        "value": "Paris Charles de Gaulle",
+      },
+      {
+        "key": "arrival_terminal",
+        "label": "Arrival terminal",
+        "value": "2E",
+      },
+      {
+        "dateStyle": "PKDateStyleMedium",
+        "ignoresTimeZone": true,
+        "key": "departure_back",
+        "label": "Departs",
+        "timeStyle": "PKDateStyleShort",
+        "value": "2026-12-03T10:25:00+09:00",
+      },
+      {
+        "key": "departure_timezone",
+        "label": "Departure time zone",
+        "value": "Asia/Tokyo",
+      },
+      {
+        "dateStyle": "PKDateStyleMedium",
+        "ignoresTimeZone": true,
+        "key": "arrival",
+        "label": "Arrives",
+        "timeStyle": "PKDateStyleShort",
+        "value": "2026-12-03T16:40:00+01:00",
+      },
+      {
+        "key": "arrival_timezone",
+        "label": "Arrival time zone",
+        "value": "UTC+01:00",
+      },
+      {
+        "key": "cabin",
+        "label": "Cabin",
+        "value": "Economy",
+      },
+      {
+        "key": "source",
+        "label": "Source",
+        "value": "Imported from Your boarding pass: ZQ 101 Tokyo Haneda to Paris
+checkin@skylane.example",
+      },
+      {
+        "attributedValue": "<a href="https://passclip.example">Open</a>",
+        "key": "made_with",
+        "label": "Made with Passclip",
+        "value": "https://passclip.example",
+      },
+    ],
+    "headerFields": [
+      {
+        "key": "gate",
+        "label": "Gate",
+        "value": "112",
+      },
+    ],
+    "primaryFields": [
+      {
+        "key": "from",
+        "label": "Tokyo",
+        "value": "HND",
+      },
+      {
+        "key": "to",
+        "label": "Paris",
+        "value": "CDG",
+      },
+    ],
+    "secondaryFields": [
+      {
+        "key": "passenger",
+        "label": "Passenger",
+        "value": "TANAKA/AIKO MS",
+      },
+      {
+        "dateStyle": "PKDateStyleNone",
+        "ignoresTimeZone": true,
+        "key": "departs",
+        "label": "Departs",
+        "timeStyle": "PKDateStyleShort",
+        "value": "2026-12-03T10:25:00+09:00",
+      },
+    ],
+    "transitType": "PKTransitTypeAir",
+  },
+  "description": "Boarding pass for Tokyo → Paris",
+  "expirationDate": "2026-12-03T22:40:00+01:00",
+  "foregroundColor": "rgb(255, 255, 255)",
+  "formatVersion": 1,
+  "groupingIdentifier": "Q7XK2P",
+  "labelColor": "rgb(185, 211, 240)",
+  "logoText": "Skylane Air",
+  "organizationName": "Skylane Air",
+  "passTypeIdentifier": "pass.com.example.test",
+  "relevantDate": "2026-12-03T10:25:00+09:00",
+  "relevantDates": [
+    {
+      "endDate": "2026-12-03T11:25:00+09:00",
+      "startDate": "2026-12-03T06:45:00+09:00",
+    },
+  ],
+  "serialNumber": "fixed-test-serial",
+  "teamIdentifier": "ABCDE12345",
+}
+`;
+
+exports[`mapToPassJson > maps gym-membership with the exact preview fields 1`] = `
+{
+  "backgroundColor": "rgb(47, 54, 64)",
+  "barcodes": [
+    {
+      "altText": "IL-20931",
+      "format": "PKBarcodeFormatQR",
+      "message": "IL-20931",
+      "messageEncoding": "iso-8859-1",
+    },
+  ],
+  "description": "Pass for Ironleaf Gym",
+  "expirationDate": "2027-10-31T23:59:59+09:00",
+  "foregroundColor": "rgb(255, 255, 255)",
+  "formatVersion": 1,
+  "generic": {
+    "auxiliaryFields": [
+      {
+        "key": "tier",
+        "label": "Tier",
+        "value": "Off-peak",
+      },
+      {
+        "key": "x_1",
+        "label": "Home club",
+        "value": "Shibuya",
+      },
+      {
+        "key": "x_2",
+        "label": "Hours",
+        "value": "Weekdays 10:00–16:00, weekends all day",
+      },
+    ],
+    "backFields": [
+      {
+        "attributedValue": "<a href="https://ironleaf.example/timetable.pdf">Open</a>",
+        "key": "att_1",
+        "label": "Class timetable",
+        "value": "https://ironleaf.example/timetable.pdf",
+      },
+      {
+        "key": "holder_back",
+        "label": "Name",
+        "value": "Aiko Tanaka",
+      },
+      {
+        "dateStyle": "PKDateStyleMedium",
+        "ignoresTimeZone": true,
+        "key": "member_since",
+        "label": "Member since",
+        "timeStyle": "PKDateStyleNone",
+        "value": "2026-10-01",
+      },
+      {
+        "key": "source",
+        "label": "Source",
+        "value": "Imported from Welcome to Ironleaf Gym
+members@ironleaf.example",
+      },
+      {
+        "attributedValue": "<a href="https://passclip.example">Open</a>",
+        "key": "made_with",
+        "label": "Made with Passclip",
+        "value": "https://passclip.example",
+      },
+    ],
+    "headerFields": [
+      {
+        "dateStyle": "PKDateStyleShort",
+        "ignoresTimeZone": true,
+        "key": "expires",
+        "label": "Expires",
+        "timeStyle": "PKDateStyleNone",
+        "value": "2027-10-31T23:59:59+09:00",
+      },
+    ],
+    "primaryFields": [
+      {
+        "key": "title",
+        "label": "Membership",
+        "value": "Ironleaf Gym",
+      },
+    ],
+    "secondaryFields": [
+      {
+        "key": "name",
+        "label": "Name",
+        "value": "Aiko Tanaka",
+      },
+      {
+        "key": "member_id",
+        "label": "Member ID",
+        "value": "IL-20931",
+      },
+    ],
+  },
+  "labelColor": "rgb(201, 209, 220)",
+  "logoText": "Ironleaf Gym",
+  "organizationName": "Ironleaf Gym",
+  "passTypeIdentifier": "pass.com.example.test",
+  "serialNumber": "fixed-test-serial",
+  "teamIdentifier": "ABCDE12345",
+}
+`;
+
+exports[`mapToPassJson > maps loyalty-card with the exact preview fields 1`] = `
+{
+  "backgroundColor": "rgb(59, 42, 32)",
+  "barcodes": [
+    {
+      "altText": "7781 2209 4410",
+      "format": "PKBarcodeFormatCode128",
+      "message": "778122094410",
+      "messageEncoding": "iso-8859-1",
+    },
+  ],
+  "description": "Loyalty card for Bean & Leaf Rewards",
+  "foregroundColor": "rgb(255, 255, 255)",
+  "formatVersion": 1,
+  "labelColor": "rgb(232, 201, 160)",
+  "logoText": "Bean & Leaf Coffee",
+  "organizationName": "Bean & Leaf Coffee",
+  "passTypeIdentifier": "pass.com.example.test",
+  "serialNumber": "fixed-test-serial",
+  "storeCard": {
+    "auxiliaryFields": [
+      {
+        "key": "tier",
+        "label": "Tier",
+        "value": "Gold",
+      },
+    ],
+    "backFields": [
+      {
+        "key": "holder_back",
+        "label": "Name",
+        "value": "Aiko Tanaka",
+      },
+      {
+        "key": "program",
+        "label": "Program",
+        "value": "Bean & Leaf Rewards",
+      },
+      {
+        "key": "source",
+        "label": "Source",
+        "value": "Imported from screenshot",
+      },
+      {
+        "attributedValue": "<a href="https://passclip.example">Open</a>",
+        "key": "made_with",
+        "label": "Made with Passclip",
+        "value": "https://passclip.example",
+      },
+    ],
+    "headerFields": [],
+    "primaryFields": [
+      {
+        "key": "points",
+        "label": "Points",
+        "value": 1250,
+      },
+    ],
+    "secondaryFields": [
+      {
+        "key": "member",
+        "label": "Member",
+        "value": "Aiko Tanaka",
+      },
+      {
+        "key": "member_id",
+        "label": "Member ID",
+        "value": "7781 2209 4410",
+      },
+    ],
+  },
+  "teamIdentifier": "ABCDE12345",
+}
+`;
+
+exports[`mapToPassJson > maps train-local-time with the exact preview fields 1`] = `
+{
+  "backgroundColor": "rgb(15, 44, 76)",
+  "boardingPass": {
+    "auxiliaryFields": [
+      {
+        "key": "number",
+        "label": "Train",
+        "value": "Express 503",
+      },
+      {
+        "key": "seat",
+        "label": "Seat",
+        "value": "D",
+      },
+      {
+        "key": "cabin",
+        "label": "Cabin",
+        "value": "Reserved",
+      },
+      {
+        "key": "car",
+        "label": "Car",
+        "value": "7",
+      },
+    ],
+    "backFields": [
+      {
+        "key": "holder_back",
+        "label": "Name",
+        "value": "Aiko Tanaka",
+      },
+      {
+        "key": "confirmation",
+        "label": "Confirmation",
+        "value": "R-55120",
+      },
+      {
+        "key": "from_back",
+        "label": "From",
+        "value": "Tokyo",
+      },
+      {
+        "key": "to_back",
+        "label": "To",
+        "value": "Kyoto",
+      },
+      {
+        "dateStyle": "PKDateStyleMedium",
+        "ignoresTimeZone": true,
+        "key": "departure_back",
+        "label": "Departs",
+        "timeStyle": "PKDateStyleShort",
+        "value": "2026-11-20T08:03:00+09:00",
+      },
+      {
+        "key": "departure_timezone",
+        "label": "Departure time zone",
+        "value": "Asia/Tokyo",
+      },
+      {
+        "dateStyle": "PKDateStyleMedium",
+        "ignoresTimeZone": true,
+        "key": "arrival",
+        "label": "Arrives",
+        "timeStyle": "PKDateStyleShort",
+        "value": "2026-11-20T10:18:00+09:00",
+      },
+      {
+        "key": "arrival_timezone",
+        "label": "Arrival time zone",
+        "value": "UTC+09:00",
+      },
+      {
+        "key": "source",
+        "label": "Source",
+        "value": "Imported from Express train e-ticket",
+      },
+      {
+        "attributedValue": "<a href="https://passclip.example">Open</a>",
+        "key": "made_with",
+        "label": "Made with Passclip",
+        "value": "https://passclip.example",
+      },
+    ],
+    "headerFields": [
+      {
+        "key": "platform",
+        "label": "Platform",
+        "value": "16",
+      },
+    ],
+    "primaryFields": [
+      {
+        "key": "from",
+        "label": "Tokyo",
+        "value": "Tokyo",
+      },
+      {
+        "key": "to",
+        "label": "Kyoto",
+        "value": "Kyoto",
+      },
+    ],
+    "secondaryFields": [
+      {
+        "key": "passenger",
+        "label": "Passenger",
+        "value": "Aiko Tanaka",
+      },
+      {
+        "dateStyle": "PKDateStyleNone",
+        "ignoresTimeZone": true,
+        "key": "departs",
+        "label": "Departs",
+        "timeStyle": "PKDateStyleShort",
+        "value": "2026-11-20T08:03:00+09:00",
+      },
+    ],
+    "transitType": "PKTransitTypeTrain",
+  },
+  "description": "Boarding pass for Tokyo → Kyoto",
+  "expirationDate": "2026-11-20T16:18:00+09:00",
+  "foregroundColor": "rgb(255, 255, 255)",
+  "formatVersion": 1,
+  "groupingIdentifier": "R-55120",
+  "labelColor": "rgb(185, 211, 240)",
+  "logoText": "Example Rail",
+  "organizationName": "Example Rail",
+  "passTypeIdentifier": "pass.com.example.test",
+  "relevantDate": "2026-11-20T08:03:00+09:00",
+  "relevantDates": [
+    {
+      "endDate": "2026-11-20T09:03:00+09:00",
+      "startDate": "2026-11-20T05:03:00+09:00",
+    },
+  ],
+  "serialNumber": "fixed-test-serial",
+  "teamIdentifier": "ABCDE12345",
+}
+`;
