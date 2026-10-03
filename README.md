@@ -48,6 +48,10 @@ The heading font is self-hosted with its license. The AI prompt comes directly f
 
 Milestones 0 and 1 don't need anything from Apple.
 
+## Going live
+
+[`docs/LAUNCH.md`](docs/LAUNCH.md) walks through everything that needs you: Apple membership, the pass certificate, putting the site online, Apple's badge, and checking it on your iPhone.
+
 ## Configure real Wallet passes
 
 You need:
