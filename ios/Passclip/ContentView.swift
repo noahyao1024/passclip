@@ -3,7 +3,7 @@ import PassKit
 import UniformTypeIdentifiers
 
 struct ContentView: View {
-    @AppStorage("serverURL", store: UserDefaults(suiteName: "group.com.example.passclip")) private var server = ""
+    @AppStorage("serverURL", store: UserDefaults(suiteName: "group.noahyao.passclip")) private var server = "https://passclip.vercel.app"
     @State private var text: String
     @State private var timeZone = TimeZone.current.identifier
     @State private var result: ImportResponse?
