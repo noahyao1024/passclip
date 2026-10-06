@@ -116,3 +116,8 @@ Apple's Add to Apple Wallet guidelines (checked 2026-10-03): use only Apple's ba
 - Same-site checks now accept `Sec-Fetch-Site: same-origin` on its own. Browsers set that header and pages can't change it. The Origin can't be compared reliably: Next reports `localhost` when the server listens on `127.0.0.1`, and the browser sent the real address for the upload's fetch. Requests without the header (older browsers, the iOS app) still need a matching Origin.
 - The page's Content-Security-Policy adds the storage address to `connect-src` only when uploads are set up.
 - `npm run check:storage` tries a real upload, public read, CORS preflight and delete with the owner's settings. It still needs an iPhone check: attachments opening from the back of a pass in Wallet, including HEIC photos.
+
+## D20: Over-long display text is shortened, not rejected (2026-10-06)
+- A real AI reply had an 81-plus character event title, and the whole import failed with "title is too long". That broke "lenient in" (CLAUDE.md rule 5) for something Passclip can fix safely.
+- Text that people only read (title, subtitle, notes, venue name, seat description, extra fields, warnings and similar) is now shortened to the schema's limit at a word boundary, ending with "…", with a warning to check it. The limits are listed in `clean.ts`, and a test checks them against the schema.
+- Codes, IDs, names, times, links and barcodes are never shortened: a cut confirmation code or barcode would be wrong, not just short. Those stay errors to fix.
