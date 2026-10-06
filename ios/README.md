@@ -18,6 +18,10 @@ Choose an iPhone simulator and run the Passclip scheme. The project, generated p
 
 The project uses the owner's identifiers: bundle IDs `noahyao.passclip` and `noahyao.passclip.share`, App Group `group.noahyao.passclip` and team `L6Z5MV9G94`. They are registered in the developer account; `xcodebuild -allowProvisioningUpdates` with Xcode signed in creates the profiles. The server address defaults to https://passclip.vercel.app. The group stores only the configured server address; ticket content remains in memory.
 
+## TestFlight
+
+`scripts/ios-testflight.sh` archives, signs and uploads a build with a timestamp build number. Signing uses the Apple account signed in to Xcode; the upload uses an App Store Connect API key (`AuthKey_<KEY_ID>.p8` in `~/.appstoreconnect/private_keys/`, plus `ASC_KEY_ID` and `ASC_ISSUER_ID`). The app record is Passclip (`noahyao.passclip`), and the internal group "Passclip team" gets every build. `--skip-upload` stops after making the `.ipa`. The app icon is a placeholder from `npm run gen:app-icon`; replace it with final art before release.
+
 ## Configure the backend
 
 In Settings, enter your HTTPS Passclip server address. The native app deliberately refuses HTTP and credential-bearing addresses and contains no signing keys. Unlike website previews, native previews send the import to `/api/import` for the shared validation/normalization pipeline. The interface explains this before sending. Responses use no-store, and the ephemeral URLSession avoids writing ticket responses into a disk cache. Redirects are refused so ticket contents cannot be forwarded to another server; enter the final server address.

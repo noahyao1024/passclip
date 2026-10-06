@@ -74,4 +74,6 @@ Keep these current:
 M2/native commands:
 - `npm run gen:images`: regenerate the committed neutral icon/logo model images.
 - `npm run smoke:signing`: after a production build, validate production native API calls and browser form downloads with temporary synthetic certificates (OpenSSL, Chromium; port 3101). Does not prove Apple trust.
+- `npm run gen:app-icon`: regenerate the placeholder iPhone app icon.
+- `scripts/ios-testflight.sh`: on a Mac, build, sign and upload the iPhone app to TestFlight (ios/README.md).
 - `ios/README.md`: XcodeGen project generation, Mac build/tests and physical-device prerequisites.

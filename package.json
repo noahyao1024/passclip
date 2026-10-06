@@ -16,6 +16,7 @@
     "check:storage": "tsx scripts/check-storage.ts",
     "test:browser": "playwright test",
     "gen:images": "tsx scripts/make-placeholder-images.ts",
+    "gen:app-icon": "tsx scripts/make-app-icon.ts",
     "smoke:signing": "node scripts/smoke-signing.mjs"
   },
   "dependencies": {
