@@ -37,5 +37,5 @@ final class ShareViewController: UIViewController {
 private struct SharedContent: View {
     let text: String
     let onClose: () -> Void
-    var body: some View { VStack(spacing: 0) { Button("Close", action: onClose).frame(maxWidth: .infinity, alignment: .trailing).padding(); ContentView(initialText: text) } }
+    var body: some View { ContentView(initialText: text, onClose: onClose) }
 }

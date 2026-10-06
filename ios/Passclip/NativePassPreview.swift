@@ -43,7 +43,7 @@ struct NativePassPreview: View {
                         Text("Wallet shows this barcode type on iOS 27 and later. The app can't preview it.").font(.caption)
                     } else { Text("Barcode preview unavailable. Check the original ticket.").font(.caption) }
                     if let alt = barcode["altText"]?.string { Text(alt).font(.caption).frame(maxWidth: .infinity) }
-                } else { Text("No barcode yet. Screenshot decoding is coming later.").font(.caption) }
+                } else { Text("No barcode yet. Add it from a screenshot below.").font(.caption) }
             }
         }
         .foregroundStyle(foreground).padding(20).frame(maxWidth: .infinity, alignment: .leading)
