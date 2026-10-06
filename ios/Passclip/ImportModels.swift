@@ -29,6 +29,7 @@ indirect enum JSONValue: Codable, Equatable {
         switch self { case .string(let value): return value; case .number(let value): return value.formatted(); default: return "" }
     }
     func removing(_ key: String) -> JSONValue { if case .object(var fields) = self { fields.removeValue(forKey: key); return .object(fields) }; return self }
+    func setting(_ key: String, to value: JSONValue) -> JSONValue { if case .object(var fields) = self { fields[key] = value; return .object(fields) }; return self }
 }
 struct ImportNotice: Decodable {
     let message: String
@@ -53,8 +54,16 @@ struct WalletLayout: Decodable {
     let backFields: [WalletField]
 }
 struct ImportedData: Decodable {
-    let passes: [JSONValue]
+    var passes: [JSONValue]
     let source: JSONValue?
+    /// Puts a code the person chose into pass `index`. The text under the code is kept only if the code didn't change.
+    mutating func setBarcode(_ code: FoundCode, at index: Int) {
+        guard passes.indices.contains(index) else { return }
+        let previous = passes[index]["barcode"]
+        var barcode: [String: JSONValue] = ["format": .string(code.format), "message": .string(code.message)]
+        if previous?["message"]?.string == code.message, let alt = previous?["altText"] { barcode["altText"] = alt }
+        passes[index] = passes[index].setting("barcode", to: .object(barcode))
+    }
     func singlePassText(at index: Int) throws -> String {
         guard passes.indices.contains(index) else { throw ServiceError.invalidResponse }
         var fields: [String: JSONValue] = ["schemaVersion": .string("1.1"), "passes": .array([passes[index].removing("needsTimeZone")])]
@@ -63,7 +72,7 @@ struct ImportedData: Decodable {
     }
 }
 struct ImportResponse: Decodable {
-    let value: ImportedData
+    var value: ImportedData
     let warnings: [ImportNotice]
     let layouts: [WalletLayout]
     let signingAvailable: Bool
