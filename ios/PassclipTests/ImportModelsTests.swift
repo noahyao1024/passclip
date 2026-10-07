@@ -1,7 +1,9 @@
 import XCTest
 import CoreImage
 import UIKit
+#if canImport(FoundationModels)
 import FoundationModels
+#endif
 @testable import Passclip
 final class ImportModelsTests: XCTestCase {
     func testSinglePassForwardingPreservesBarcodeAndOmitsPreviewMetadata() throws {
@@ -161,6 +163,7 @@ final class EmailReadingTests: XCTestCase {
         XCTAssertEqual(EmailPreparer.prepare("  Hello \n\n\n\n there  ", maxCharacters: 100), "Hello\n\nthere")
     }
 
+    #if canImport(FoundationModels)
     func testExplainsWhyTheModelIsUnavailable() throws {
         guard #available(iOS 26.0, *) else { throw XCTSkip("Needs iOS 26") }
         XCTAssertEqual(EmailReader.status(for: .available), .ready)
@@ -170,4 +173,16 @@ final class EmailReadingTests: XCTestCase {
             XCTAssertTrue(message.hasSuffix("."), "Messages are full sentences")
         }
     }
+
+    func testExplainsFailuresInPlainEnglishWithoutEchoingAnything() throws {
+        guard #available(iOS 26.0, *) else { throw XCTSkip("Needs iOS 26") }
+        enum Stand: Error { case contextSizeExceeded(String), refusal, rateLimited(Int), somethingNew }
+        let tooLong = OnDeviceExtractor.message(for: Stand.contextSizeExceeded("SECRET EMAIL TEXT"))
+        XCTAssertTrue(tooLong.contains("too long"))
+        XCTAssertFalse(tooLong.contains("SECRET"))
+        XCTAssertTrue(OnDeviceExtractor.message(for: Stand.refusal).contains("declined"))
+        XCTAssertTrue(OnDeviceExtractor.message(for: Stand.rateLimited(3)).contains("busy"))
+        XCTAssertTrue(OnDeviceExtractor.message(for: Stand.somethingNew).hasPrefix("Apple Intelligence couldn't read"))
+    }
+    #endif
 }

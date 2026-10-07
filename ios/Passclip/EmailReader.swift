@@ -206,27 +206,17 @@ enum OnDeviceExtractor {
 
     private static func prompt(_ email: String) -> String { "Email:\n\(email)" }
 
-    /// Plain-English text for a failure, without anything from the email.
+    /// Plain-English text for a failure, without anything from the email. Errors are matched by case
+    /// name so this builds on every iOS 26 SDK: iOS 27 renamed and moved the model's error types.
     static func message(for error: Error) -> String {
-        if #available(iOS 27.0, *), let error = error as? LanguageModelError {
-            switch error {
-            case .contextSizeExceeded: return tooLong
-            case .guardrailViolation, .refusal: return declined
-            case .unsupportedLanguageOrLocale: return language
-            case .rateLimited, .timeout: return busy
-            default: return generic
-            }
+        let name = Mirror(reflecting: error).children.first?.label ?? String(describing: error)
+        switch name {
+        case "contextSizeExceeded", "exceededContextWindowSize": return tooLong
+        case "guardrailViolation", "refusal": return declined
+        case "unsupportedLanguageOrLocale": return language
+        case "rateLimited", "concurrentRequests", "timeout": return busy
+        default: return generic
         }
-        if let error = error as? LanguageModelSession.GenerationError {
-            switch error {
-            case .exceededContextWindowSize: return tooLong
-            case .guardrailViolation, .refusal: return declined
-            case .unsupportedLanguageOrLocale: return language
-            case .rateLimited, .concurrentRequests: return busy
-            default: return generic
-            }
-        }
-        return generic
     }
 
     private static let tooLong = "This email is too long for the model on your iPhone. Select just the part with your ticket details, copy it and try again."
