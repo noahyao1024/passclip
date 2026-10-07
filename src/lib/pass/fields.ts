@@ -108,6 +108,7 @@ export function layoutPass(pass: Pass, options: LayoutOptions = {}): PassLayout 
       else overflow.push(field);
     }
   };
+  const hasRoom = (group: FrontGroup) => layout[group].length < caps[group];
   const back = (...fields: (PassField | undefined)[]) => {
     for (const field of fields) if (field) layout.backFields.push(field);
   };
@@ -118,7 +119,12 @@ export function layoutPass(pass: Pass, options: LayoutOptions = {}): PassLayout 
       front("headerFields", date("date", "Date", pass.start, SHORT));
       front("primaryFields", text("title", pass.subtitle ?? "Event", pass.title));
       front("secondaryFields", date("starts", "Starts", pass.start, MEDIUM, SHORT), text("venue", "Venue", pass.venue?.name));
-      front("auxiliaryFields", text("section", "Section", pass.seat?.section), text("row", "Row", pass.seat?.row), text("seat", "Seat", pass.seat?.number), text("entrance", "Entrance", pass.seat?.entrance), ...extraFields);
+      front("auxiliaryFields", text("section", "Section", pass.seat?.section), text("row", "Row", pass.seat?.row), text("seat", "Seat", pass.seat?.number), text("entrance", "Entrance", pass.seat?.entrance));
+      // The seat category (like "CAT 2") and the booking number fill spare room on the front, so a
+      // ticket without a seat number isn't left nearly empty. When the row is full they stay on the back.
+      if (hasRoom("auxiliaryFields")) front("auxiliaryFields", text("category", "Category", pass.seat?.description));
+      if (hasRoom("auxiliaryFields")) front("auxiliaryFields", text("booking", "Booking", pass.confirmationCode));
+      front("auxiliaryFields", ...extraFields);
       break;
     case "boardingPass": {
       const transit = pass.transit;
@@ -159,13 +165,14 @@ export function layoutPass(pass: Pass, options: LayoutOptions = {}): PassLayout 
     if (isHttpsLink(attachment.url)) back(link(`att_${index + 1}`, attachment.title, attachment.url));
     else layout.warnings.push({ kind: "fix", message: `Removed “${attachment.title}” because its link isn't a full https:// link.` });
   });
-  back(text("holder_back", "Name", pass.holderName), text("confirmation", "Confirmation", pass.confirmationCode), text("ticket_number", "Ticket number", pass.ticketNumber), money("price", "Price", pass.price));
+  const onFront = (key: string) => layout.auxiliaryFields.some((field) => field.key === key);
+  back(text("holder_back", "Name", pass.holderName), onFront("booking") ? undefined : text("confirmation", "Confirmation", pass.confirmationCode), text("ticket_number", "Ticket number", pass.ticketNumber), money("price", "Price", pass.price));
   back(text("venue_back", "Venue", pass.venue?.name), text("address", "Address", pass.venue?.address), text("room", "Room", pass.venue?.room));
   if (pass.type === "boardingPass") {
     back(text("from_back", "From", pass.transit?.from.name ?? pass.transit?.from.city ?? pass.transit?.from.code), text("departure_terminal", "Departure terminal", pass.transit?.from.terminal), text("to_back", "To", pass.transit?.to.name ?? pass.transit?.to.city ?? pass.transit?.to.code), text("arrival_terminal", "Arrival terminal", pass.transit?.to.terminal));
     back(date("departure_back", "Departs", pass.start, MEDIUM, SHORT), text("departure_timezone", "Departure time zone", departureZone(pass.start, pass.timeZone)), date("arrival", "Arrives", pass.end, MEDIUM, SHORT), text("arrival_timezone", "Arrival time zone", offsetLabel(pass.end)));
   }
-  back(text("terms", "Terms", pass.offer?.terms), text("seat_description", "Seating", pass.seat?.description), text("program", "Program", pass.membership?.programName), date("member_since", "Member since", pass.membership?.since, MEDIUM), ...overflow);
+  back(text("terms", "Terms", pass.offer?.terms), onFront("category") ? undefined : text("seat_description", "Seating", pass.seat?.description), text("program", "Program", pass.membership?.programName), date("member_since", "Member since", pass.membership?.since, MEDIUM), ...overflow);
   const source = options.source;
   if (source) {
     const origin = source.subject ?? source.sender ?? source.kind;

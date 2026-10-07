@@ -76,6 +76,15 @@ export default function PrivacyPage() {
         linked from the pass, never put inside it.
       </p>
 
+      <h2>The iPhone app and your emails</h2>
+      <p>
+        On an iPhone with Apple Intelligence, the app reads a ticket email you
+        paste or share with Apple’s model on the iPhone itself. The email is not
+        sent to Passclip. Only the pass details found in it, such as the title,
+        date and venue, go to the server to make the preview and the Wallet
+        pass, and the server does not store them.
+      </p>
+
       <h2>Files you attach</h2>
       <p>
         When you attach a PDF or photo to a pass, your browser uploads it

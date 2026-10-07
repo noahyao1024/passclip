@@ -11,22 +11,27 @@ struct ContentView: View {
     @State private var error = ""
     @State private var notice = ""
     @State private var busy = false
+    @State private var busyLabel = ""
+    @State private var reader = EmailReader.status
     @State private var copied = false
     @State private var choosingFile = false
     @State private var showingSettings = false
     @State private var walletPass: PKPass?
     @State private var showingWallet = false
     @FocusState private var editing: Bool
+    @Environment(\.scenePhase) private var scenePhase
     private let onClose: (() -> Void)?
-    private let previewOnAppear: Bool
+    private let startOnAppear: Bool
 
-    init(initialText: String = "", onClose: (() -> Void)? = nil, previewOnAppear: Bool = false) {
+    /// `startOnAppear` makes the pass right away, for text shared from Mail or Safari.
+    init(initialText: String = "", onClose: (() -> Void)? = nil, startOnAppear: Bool = false) {
         _text = State(initialValue: initialText)
         self.onClose = onClose
-        self.previewOnAppear = previewOnAppear
+        self.startOnAppear = startOnAppear
     }
 
     private var hasText: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var readsEmails: Bool { reader.isReady && !ImportDetector.looksLikeImportJSON(text) }
 
     var body: some View {
         NavigationStack {
@@ -35,8 +40,16 @@ struct ContentView: View {
                     // With results, the passes take the screen; "Edit reply" brings the steps back.
                     if result == nil {
                         header
-                        askStep
-                        pasteStep
+                        if reader.isReady {
+                            pasteCard(number: nil, title: "Paste your ticket email", placeholder: "Select the text of your ticket email, copy it, and paste it here.",
+                                      label: "Ticket email or AI reply", footnote: "Your email is read on this iPhone. Only the pass details found in it go to your Passclip server for the preview.")
+                            otherAI
+                        } else {
+                            if case .unavailable(let reason) = reader { Label(reason, systemImage: "sparkles").font(.footnote).foregroundStyle(Brand.muted) }
+                            askStep
+                            pasteCard(number: 2, title: "Paste the AI's reply", placeholder: "{ \"schemaVersion\": \"1.1\", \"passes\": [ … ] }",
+                                      label: "AI reply", footnote: "Previews are checked by your Passclip server and not saved.")
+                        }
                     }
                     if !error.isEmpty { errorCard }
                     if let result { results(result) } else if !busy { emptyState }
@@ -57,7 +70,8 @@ struct ContentView: View {
             .fileImporter(isPresented: $choosingFile, allowedContentTypes: [.json, .plainText]) { readFile($0) }
             .sheet(isPresented: $showingSettings) { SettingsSheet(server: $server) }
             .sheet(isPresented: $showingWallet) { if let walletPass { WalletSheet(pass: walletPass) { showingWallet = false; self.walletPass = nil } } }
-            .task { if previewOnAppear { await preview() } }
+            .task { if startOnAppear && hasText { await makePass() } }
+            .onChange(of: scenePhase) { _, phase in if phase == .active { reader = EmailReader.status } }
             .onChange(of: text) { _, _ in result = nil; notice = "" }
             .onChange(of: server) { _, _ in result = nil }
             .onChange(of: timeZone) { _, _ in if result != nil { Task { await preview() } } }
@@ -78,7 +92,13 @@ struct ContentView: View {
     private var askStep: some View {
         Card {
             StepHeading(number: 1, title: "Ask any AI")
-            Text("Copy our prompt, then paste it with your ticket email into ChatGPT, Claude or any AI chat.")
+            askContent
+        }
+    }
+
+    private var askContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Copy our prompt, then paste it with your ticket email into ChatGPT, Claude or any AI chat. Paste its reply back here.")
                 .font(.subheadline).foregroundStyle(Brand.muted)
             Button(action: copyPrompt) {
                 Label(copied ? "Copied" : "Copy AI prompt", systemImage: copied ? "checkmark" : "doc.on.doc")
@@ -87,21 +107,29 @@ struct ContentView: View {
         }
     }
 
-    private var pasteStep: some View {
+    /// The old way, kept for anyone who prefers another AI.
+    private var otherAI: some View {
         Card {
-            StepHeading(number: 2, title: "Paste the AI's reply")
+            DisclosureGroup("Use another AI instead") { askContent.padding(.top, 8) }
+                .font(.subheadline.weight(.semibold)).foregroundStyle(Brand.ink)
+        }
+    }
+
+    private func pasteCard(number: Int?, title: String, placeholder: String, label: String, footnote: String) -> some View {
+        Card {
+            if let number { StepHeading(number: number, title: title) } else { Text(title).font(.headline).foregroundStyle(Brand.ink) }
             ZStack(alignment: .topLeading) {
                 TextEditor(text: $text)
                     .focused($editing)
-                    .font(.system(.footnote, design: .monospaced))
+                    .font(ImportDetector.looksLikeImportJSON(text) ? .system(.footnote, design: .monospaced) : .footnote)
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 150, maxHeight: 260)
                     .padding(8)
                     .background(Brand.input, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .accessibilityLabel("AI reply")
+                    .accessibilityLabel(label)
                 if !hasText {
-                    Text("{ \"schemaVersion\": \"1.1\", \"passes\": [ … ] }")
-                        .font(.system(.footnote, design: .monospaced)).foregroundStyle(Brand.muted)
+                    Text(placeholder)
+                        .font(.footnote).foregroundStyle(Brand.muted)
                         .padding(.horizontal, 13).padding(.vertical, 16).allowsHitTesting(false).accessibilityHidden(true)
                 }
             }
@@ -112,15 +140,19 @@ struct ContentView: View {
                 Spacer()
                 if hasText { Button("Clear", role: .destructive) { text = ""; error = "" }.font(.subheadline) }
             }
-            Label("Previews are checked by your Passclip server and not saved.", systemImage: "lock")
+            Label(footnote, systemImage: "lock")
                 .font(.caption).foregroundStyle(Brand.muted)
         }
     }
 
     private var previewBar: some View {
         VStack(spacing: 0) {
-            Button { editing = false; Task { await preview() } } label: {
-                if busy { ProgressView().tint(Brand.signalText) } else { Text("Preview passes") }
+            Button { editing = false; Task { await makePass() } } label: {
+                if busy {
+                    HStack(spacing: 10) { ProgressView().tint(Brand.signalText); if !busyLabel.isEmpty { Text(busyLabel) } }
+                } else {
+                    Text(readsEmails ? "Make pass" : "Preview passes")
+                }
             }
             .buttonStyle(PrimaryButtonStyle())
             .disabled(busy || !hasText)
@@ -133,7 +165,8 @@ struct ContentView: View {
         VStack(spacing: 10) {
             Image(systemName: "wallet.pass").font(.system(size: 40, weight: .light)).foregroundStyle(Brand.signal)
             Text("Your passes appear here").font(.headline).foregroundStyle(Brand.ink)
-            Text("Check every detail against your ticket, add the barcode from a screenshot if it's missing, then add the pass to Wallet.")
+            Text(reader.isReady ? "Paste your ticket email and Apple Intelligence fills in the pass on this iPhone. Then add the barcode from a screenshot and add it to Wallet."
+                                : "Check every detail against your ticket, add the barcode from a screenshot if it's missing, then add the pass to Wallet.")
                 .font(.subheadline).foregroundStyle(Brand.muted).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity).padding(.vertical, 28).padding(.horizontal, 20)
@@ -239,8 +272,28 @@ struct ContentView: View {
         } catch { self.error = error.localizedDescription }
     }
 
+    /// A pasted email is read on this iPhone first; an AI reply (JSON) goes straight to the preview.
+    @MainActor private func makePass() async {
+        error = ""
+        if readsEmails {
+            busy = true; busyLabel = "Reading your email…"
+            let sent = text
+            do {
+                let json = try await EmailReader.extract(from: sent)
+                // Editing while the model works must not replace the new text with a stale answer.
+                guard text == sent else { busy = false; busyLabel = ""; return }
+                text = json
+            } catch {
+                busy = false; busyLabel = ""
+                self.error = error.localizedDescription
+                return
+            }
+        }
+        await preview()
+    }
+
     @MainActor private func preview() async {
-        busy = true; error = ""; defer { busy = false }
+        busy = true; busyLabel = "Checking your pass…"; error = ""; defer { busy = false; busyLabel = "" }
         let sentText = text, sentServer = server, sentZone = timeZone
         do {
             let response = try await PassclipService(server: sentServer).preview(text: sentText, timeZone: sentZone)
