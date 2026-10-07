@@ -38,6 +38,9 @@ targets:
         com.apple.security.application-groups: [group.noahyao.passclip]
     dependencies:
       - target: PassclipShare
+      # Apple's on-device model needs iOS 26; weak linking keeps the app launching on iOS 17 and later.
+      - sdk: FoundationModels.framework
+        weak: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: noahyao.passclip
@@ -74,6 +77,9 @@ targets:
         APPLICATION_EXTENSION_API_ONLY: YES
         MARKETING_VERSION: '0.1.0'
         CURRENT_PROJECT_VERSION: '1'
+    dependencies:
+      - sdk: FoundationModels.framework
+        weak: true
   PassclipTests:
     type: bundle.unit-test
     platform: iOS

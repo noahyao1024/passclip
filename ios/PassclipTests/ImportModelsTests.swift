@@ -1,6 +1,7 @@
 import XCTest
 import CoreImage
 import UIKit
+import FoundationModels
 @testable import Passclip
 final class ImportModelsTests: XCTestCase {
     func testSinglePassForwardingPreservesBarcodeAndOmitsPreviewMetadata() throws {
@@ -41,7 +42,7 @@ final class ImportModelsTests: XCTestCase {
         // Vision's barcode reader needs real hardware: in the Simulator it fails ("Could not create
         // inference context") or finds nothing. The same calls were checked on a Mac (D21).
         throw XCTSkip("Vision barcode reading doesn't run in the Simulator; run this test on an iPhone.")
-        #endif
+        #else
         for (filter, format, message) in [("CIQRCodeGenerator", "qr", "1004940771101-CAT2"), ("CICode128BarcodeGenerator", "code128", "R-55120")] {
             let generator = CIFilter(name: filter)!
             generator.setValue(Data(message.utf8), forKey: "inputMessage")
@@ -50,6 +51,123 @@ final class ImportModelsTests: XCTestCase {
             let padded = output.composited(over: CIImage(color: .white).cropped(to: output.extent.insetBy(dx: -80, dy: -80)))
             let cgImage = CIContext().createCGImage(padded, from: padded.extent)!
             XCTAssertEqual(try BarcodeReader.read(UIImage(cgImage: cgImage)), [FoundCode(format: format, message: message)])
+        }
+        #endif
+    }
+}
+
+final class EmailReadingTests: XCTestCase {
+    private let maiseat = ExtractedPass(
+        type: "eventTicket", title: "Deyun Club’s 30th Anniversary Cross Talk Show featuring Yue Yunpeng and Sun Yue - Singapore",
+        organization: "MAISEAT", confirmationCode: "1004940771101", start: "2026-10-10T19:30", timeZone: "Asia/Singapore",
+        venueName: "Resorts World Convention Centre", venueCity: "Singapore", seatCategory: "CAT 2",
+        notes: "Tickets are non-refundable and non-exchangeable. One ticket per person is required."
+    )
+
+    private func object(_ json: String?) throws -> [String: Any] {
+        let data = try XCTUnwrap(json).data(using: .utf8)!
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+    private func firstPass(_ json: String?) throws -> [String: Any] {
+        let passes = try XCTUnwrap(object(json)["passes"] as? [[String: Any]])
+        return try XCTUnwrap(passes.first)
+    }
+
+    func testBuildsImportJSONForATicketAndMatchesTheGoldenFileTheWebTestsValidate() throws {
+        let json = try XCTUnwrap(ImportJSONBuilder.json(from: [maiseat]))
+        let url = try XCTUnwrap(Bundle(for: EmailReadingTests.self).url(forResource: "ai-ticket", withExtension: "json"))
+        XCTAssertEqual(json, try String(contentsOf: url, encoding: .utf8).trimmingCharacters(in: .newlines))
+        let pass = try firstPass(json)
+        XCTAssertEqual(pass["start"] as? String, "2026-10-10T19:30:00")
+        XCTAssertEqual((pass["seat"] as? [String: String])?["description"], "CAT 2")
+        XCTAssertNil(pass["barcode"], "The AI never supplies a barcode (CLAUDE.md rule 3)")
+        XCTAssertEqual(try object(json)["schemaVersion"] as? String, "1.1")
+        XCTAssertEqual((try object(json)["warnings"] as? [String])?.last, ImportJSONBuilder.barcodeWarning)
+    }
+
+    func testLeavesOutWhatItCannotTrustInsteadOfGuessing() throws {
+        var item = maiseat
+        item.start = "sometime in October"
+        item.timeZone = "Mars/Olympus"
+        item.confirmationCode = "N/A"
+        item.venueCity = "  "
+        let json = try XCTUnwrap(ImportJSONBuilder.json(from: [item]))
+        let pass = try firstPass(json)
+        XCTAssertNil(pass["start"]); XCTAssertNil(pass["timeZone"]); XCTAssertNil(pass["confirmationCode"])
+        XCTAssertEqual((pass["venue"] as? [String: String])?["name"], "Resorts World Convention Centre")
+        XCTAssertTrue((try object(json)["warnings"] as? [String] ?? []).contains { $0.contains("Couldn't read the date or time") })
+    }
+
+    func testReadsTimesWrittenInCommonWays() {
+        XCTAssertEqual(ImportJSONBuilder.localTime("2026-10-10T19:30"), "2026-10-10T19:30:00")
+        XCTAssertEqual(ImportJSONBuilder.localTime("2026-10-10 19:30"), "2026-10-10T19:30:00")
+        XCTAssertEqual(ImportJSONBuilder.localTime("2026-10-10T19:30:15"), "2026-10-10T19:30:15")
+        XCTAssertEqual(ImportJSONBuilder.localTime("2026-10-10T19:30+08:00"), "2026-10-10T19:30+08:00")
+        for bad in ["2026-02-30T10:00", "2026-10-10", "2026-10-10T25:00", "10/10/2026 7:30 PM", "", nil] { XCTAssertNil(ImportJSONBuilder.localTime(bad), "\(bad ?? "nil")") }
+        XCTAssertEqual(ImportJSONBuilder.zone("Asia/Singapore"), "Asia/Singapore")
+        XCTAssertNil(ImportJSONBuilder.zone("Singapore time"))
+    }
+
+    func testBoardingPassNeedsARouteOtherwiseItBecomesAPlainPass() throws {
+        var flight = ExtractedPass(type: "boardingPass", title: "ZQ 101", transitMode: "air", carrier: "Skylane Air", number: "ZQ 101", fromCode: "HND", fromCity: "Tokyo", toCode: "CDG", toCity: "Paris", gate: "112")
+        flight.start = "2026-12-03T10:25"
+        let pass = try firstPass(ImportJSONBuilder.json(from: [flight]))
+        XCTAssertEqual(pass["type"] as? String, "boardingPass")
+        let transit = try XCTUnwrap(pass["transit"] as? [String: Any])
+        XCTAssertEqual(transit["mode"] as? String, "air")
+        XCTAssertEqual((transit["from"] as? [String: String])?["code"], "HND")
+
+        flight.fromCode = nil; flight.fromCity = nil
+        let json = ImportJSONBuilder.json(from: [flight])
+        XCTAssertEqual(try firstPass(json)["type"] as? String, "generic")
+        XCTAssertNil(try firstPass(json)["transit"])
+    }
+
+    func testUnknownTypesBecomeGenericAndEmptyTitlesFallBackToTheOrganizer() throws {
+        XCTAssertEqual(try firstPass(ImportJSONBuilder.json(from: [ExtractedPass(type: "ticket!", title: "Thing")]))["type"] as? String, "generic")
+        XCTAssertEqual(try firstPass(ImportJSONBuilder.json(from: [ExtractedPass(title: " ", organization: "MAISEAT")]))["title"] as? String, "MAISEAT")
+        XCTAssertNil(ImportJSONBuilder.json(from: [ExtractedPass(title: "", organization: nil)]))
+        XCTAssertNil(ImportJSONBuilder.json(from: []))
+    }
+
+    func testTellsAnAIReplyFromAnEmail() {
+        XCTAssertTrue(ImportDetector.looksLikeImportJSON(#"{ "schemaVersion": "1.1", "passes": [] }"#))
+        XCTAssertTrue(ImportDetector.looksLikeImportJSON("```json\n{\"passes\": []}\n```"))
+        XCTAssertFalse(ImportDetector.looksLikeImportJSON("Your order has been successfully placed! Order Number: 1004940771101"))
+    }
+
+    func testTrimsLongEmailsWithoutLosingTheDetails() {
+        let details = "Order Number: 1004940771101\nEvent: Cross Talk Show\nDate: 10 Oct 2026, 7:30 PM\nVenue: Resorts World Convention Centre"
+        let legal = String(repeating: "By purchasing you agree to the terms and conditions of sale, which apply to every order. ", count: 80)
+        let email = """
+        > old quoted reply with 12345
+        \(details)
+
+        See your tickets: https://tracking.example.com/click?id=\(String(repeating: "x", count: 300))
+
+        \(legal)
+
+        \(legal)
+
+        Thanks for your order, see you at the show!
+        """
+        let prepared = EmailPreparer.prepare(email, maxCharacters: 600)
+        XCTAssertLessThanOrEqual(prepared.count, 600)
+        XCTAssertTrue(prepared.contains("Order Number: 1004940771101"))
+        XCTAssertTrue(prepared.contains("Date: 10 Oct 2026, 7:30 PM"))
+        XCTAssertFalse(prepared.contains("http"))
+        XCTAssertFalse(prepared.contains("old quoted reply"))
+        XCTAssertFalse(prepared.contains("terms and conditions"))
+        XCTAssertEqual(EmailPreparer.prepare("  Hello \n\n\n\n there  ", maxCharacters: 100), "Hello\n\nthere")
+    }
+
+    func testExplainsWhyTheModelIsUnavailable() throws {
+        guard #available(iOS 26.0, *) else { throw XCTSkip("Needs iOS 26") }
+        XCTAssertEqual(EmailReader.status(for: .available), .ready)
+        for reason in [SystemLanguageModel.Availability.UnavailableReason.deviceNotEligible, .appleIntelligenceNotEnabled, .modelNotReady] {
+            guard case .unavailable(let message) = EmailReader.status(for: .unavailable(reason)) else { return XCTFail("Expected a reason") }
+            XCTAssertFalse(message.isEmpty)
+            XCTAssertTrue(message.hasSuffix("."), "Messages are full sentences")
         }
     }
 }

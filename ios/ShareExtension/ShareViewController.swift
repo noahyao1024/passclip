@@ -37,5 +37,5 @@ final class ShareViewController: UIViewController {
 private struct SharedContent: View {
     let text: String
     let onClose: () -> Void
-    var body: some View { ContentView(initialText: text, onClose: onClose) }
+    var body: some View { ContentView(initialText: text, onClose: onClose, startOnAppear: true) }
 }

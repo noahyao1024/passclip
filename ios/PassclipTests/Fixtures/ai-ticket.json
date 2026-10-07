@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.1",
+  "source": {
+    "kind": "email"
+  },
+  "passes": [
+    {
+      "type": "eventTicket",
+      "title": "Deyun Club’s 30th Anniversary Cross Talk Show featuring Yue Yunpeng and Sun Yue - Singapore",
+      "organization": "MAISEAT",
+      "confirmationCode": "1004940771101",
+      "start": "2026-10-10T19:30:00",
+      "timeZone": "Asia/Singapore",
+      "venue": {
+        "name": "Resorts World Convention Centre",
+        "city": "Singapore"
+      },
+      "seat": {
+        "description": "CAT 2"
+      },
+      "notes": "Tickets are non-refundable and non-exchangeable. One ticket per person is required."
+    }
+  ],
+  "warnings": [
+    "Read by Apple Intelligence on this iPhone. Check every detail against your email.",
+    "The barcode isn't included. Add it from a screenshot of your ticket."
+  ]
+}

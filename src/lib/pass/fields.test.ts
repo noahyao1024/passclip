@@ -53,6 +53,22 @@ describe("front fields and overflow", () => {
     expect(layout.warnings).toEqual([]);
   });
 
+  it("shows the seat category and booking number on the front of a ticket without a seat number", () => {
+    // A real ticket: only a category ("CAT 2") and a booking number, no section, row or seat.
+    const layout = layoutPass({ type: "eventTicket", title: "Cross Talk Show", confirmationCode: "1004940771101", start: "2026-10-10T19:30:00+08:00", venue: { name: "Resorts World Convention Centre" }, seat: { description: "CAT 2" } });
+    expect(layout.auxiliaryFields.map(({ key, label, value }) => [key, label, value])).toEqual([["category", "Category", "CAT 2"], ["booking", "Booking", "1004940771101"]]);
+    // Nothing is shown twice.
+    expect(layout.backFields.map((field) => field.key)).not.toContain("confirmation");
+    expect(layout.backFields.map((field) => field.key)).not.toContain("seat_description");
+  });
+
+  it("keeps the category and booking number on the back when the seat row is already full", () => {
+    const layout = layoutPass({ type: "eventTicket", title: "Show", confirmationCode: "ABC123", seat: { section: "B", row: "F", number: "12", entrance: "East door", description: "Balcony" } });
+    expect(layout.auxiliaryFields.map((field) => field.key)).toEqual(["section", "row", "seat", "entrance"]);
+    expect(layout.backFields).toContainEqual({ key: "confirmation", label: "Confirmation", value: "ABC123" });
+    expect(layout.backFields).toContainEqual({ key: "seat_description", label: "Seating", value: "Balcony" });
+  });
+
   it("fills generic auxiliary fields in order and sends the remainder to the back", () => {
     const layout = layoutPass({
       type: "generic", title: "Gym", membership: { tier: "Gold" }, start: "2026-12-03T10:25:00+09:00",
