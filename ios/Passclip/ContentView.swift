@@ -8,13 +8,14 @@ struct ContentView: View {
     @State private var text: String
     @State private var timeZone = TimeZone.current.identifier
     @State private var result: ImportResponse?
-    @State private var error = ""
+    @State private var error: String
     @State private var notice = ""
     @State private var busy = false
     @State private var busyLabel = ""
     @State private var reader = EmailReader.status
     @State private var copied = false
     @State private var choosingFile = false
+    @State private var suggestedCodes: [FoundCode]
     @State private var showingSettings = false
     @State private var walletPass: PKPass?
     @State private var showingWallet = false
@@ -24,8 +25,10 @@ struct ContentView: View {
     private let startOnAppear: Bool
 
     /// `startOnAppear` makes the pass right away, for text shared from Mail or Safari.
-    init(initialText: String = "", onClose: (() -> Void)? = nil, startOnAppear: Bool = false) {
+    init(initialText: String = "", initialCodes: [FoundCode] = [], initialError: String = "", onClose: (() -> Void)? = nil, startOnAppear: Bool = false) {
         _text = State(initialValue: initialText)
+        _suggestedCodes = State(initialValue: initialCodes)
+        _error = State(initialValue: initialError)
         self.onClose = onClose
         self.startOnAppear = startOnAppear
     }
@@ -67,7 +70,7 @@ struct ContentView: View {
                 }
                 ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { editing = false } }
             }
-            .fileImporter(isPresented: $choosingFile, allowedContentTypes: [.json, .plainText]) { readFile($0) }
+            .fileImporter(isPresented: $choosingFile, allowedContentTypes: [.item]) { readFile($0) }
             .sheet(isPresented: $showingSettings) { SettingsSheet(server: $server) }
             .sheet(isPresented: $showingWallet) { if let walletPass { WalletSheet(pass: walletPass) { showingWallet = false; self.walletPass = nil } } }
             .task { if startOnAppear && hasText { await makePass() } }
@@ -136,7 +139,7 @@ struct ContentView: View {
             HStack(spacing: 8) {
                 PasteButton(payloadType: String.self) { strings in if let first = strings.first { text = first } }
                     .buttonBorderShape(.roundedRectangle(radius: 10)).labelStyle(.titleAndIcon)
-                Button { choosingFile = true } label: { Label("File", systemImage: "folder") }.buttonStyle(SecondaryButtonStyle())
+                Button { choosingFile = true } label: { Label("PDF or file", systemImage: "folder") }.buttonStyle(SecondaryButtonStyle())
                 Spacer()
                 if hasText { Button("Clear", role: .destructive) { text = ""; error = "" }.font(.subheadline) }
             }
@@ -204,7 +207,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 12) {
                 if result.value.passes.count > 1 { Text("Pass \(index + 1)").font(.footnote.weight(.semibold)).foregroundStyle(Brand.muted) }
                 NativePassPreview(pass: result.value.passes[index], layout: result.layouts[index])
-                CodeFromImage(current: result.value.passes[index]["barcode"]) { code in
+                CodeFromImage(current: result.value.passes[index]["barcode"], suggested: suggestedCodes) { code in
                     self.result?.value.setBarcode(code, at: index)
                     notice = "Added the \(BarcodeReader.names[code.format] ?? "code") to pass \(index + 1)."
                 }
@@ -260,15 +263,22 @@ struct ContentView: View {
         Task { try? await Task.sleep(for: .seconds(2)); copied = false }
     }
 
+    /// A PDF, screenshot, photo or text file. The kind comes from the file's content, not its name.
     private func readFile(_ selection: Result<URL, Error>) {
         do {
             let url = try selection.get(); let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
             let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-            guard size <= 256 * 1024 else { throw ServiceError.tooLarge }
+            guard size <= DocumentReader.maxBytes else { throw DocumentError.tooLarge }
             let data = try Data(contentsOf: url)
-            guard data.count <= 256 * 1024 else { throw ServiceError.tooLarge }
-            guard let input = String(data: data, encoding: .utf8) else { throw ServiceError.rejected("Choose a UTF-8 .json or .txt file.") }
-            text = input; error = ""
+            Task { await openDocument(data) }
+        } catch { self.error = error.localizedDescription }
+    }
+
+    @MainActor private func openDocument(_ data: Data) async {
+        busy = true; busyLabel = "Reading your document…"; error = ""; defer { busy = false; busyLabel = "" }
+        do {
+            let document = try await DocumentReader.read(data)
+            text = document.text; suggestedCodes = document.codes
         } catch { self.error = error.localizedDescription }
     }
 
@@ -316,11 +326,13 @@ struct ContentView: View {
 /// Reads a barcode from a screenshot or photo, on this device, and offers it for one pass.
 private struct CodeFromImage: View {
     let current: JSONValue?
+    var suggested: [FoundCode] = []
     let onUse: (FoundCode) -> Void
     @State private var item: PhotosPickerItem?
     @State private var reading = false
     @State private var found: [FoundCode] = []
     @State private var problem = ""
+    @State private var fromDocument = false
 
     private var hasCode: Bool { current?["message"]?.string != nil }
 
@@ -339,6 +351,7 @@ private struct CodeFromImage: View {
             .buttonStyle(SecondaryButtonStyle())
             .disabled(reading)
             if !problem.isEmpty { Text(problem).font(.caption).foregroundStyle(Brand.error) }
+            if fromDocument && !found.isEmpty { Text("Found in the document you shared. Check it, then choose it.").font(.caption).foregroundStyle(Brand.muted) }
             ForEach(found) { code in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(BarcodeReader.names[code.format] ?? code.format).font(.caption.weight(.semibold)).foregroundStyle(Brand.muted)
@@ -356,11 +369,12 @@ private struct CodeFromImage: View {
                 .background(Brand.input, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
         }
+        .onAppear { if found.isEmpty && !hasCode && !suggested.isEmpty { found = suggested; fromDocument = true } }
         .onChange(of: item) { _, newItem in if let newItem { Task { await read(newItem) } } }
     }
 
     @MainActor private func read(_ item: PhotosPickerItem) async {
-        reading = true; problem = ""; found = []
+        reading = true; problem = ""; found = []; fromDocument = false
         defer { reading = false; self.item = nil }
         do {
             guard let data = try await item.loadTransferable(type: Data.self), let image = UIImage(data: data) else {
