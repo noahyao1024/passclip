@@ -5,7 +5,8 @@ import SwiftUI
 /// from my ticket seller"). The ticket can be text, a link, a PDF or a screenshot; Passclip opens and makes the pass.
 struct MakePassIntent: AppIntent {
     static let title: LocalizedStringResource = "Make a pass"
-    static let description = IntentDescription("Turns a ticket email, link, PDF or screenshot into an Apple Wallet pass with Passclip.")
+    // Apple refuses Siri text that contains "Apple" (ITMS-90626), so it says "Wallet".
+    static let description = IntentDescription("Turns a ticket email, link, PDF or screenshot into a Wallet pass.")
     static let openAppWhenRun = true
 
     // Any file: Passclip tells PDFs, pictures and text apart by their content (DocumentReader).
