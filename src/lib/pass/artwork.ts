@@ -20,11 +20,16 @@ export const BACKGROUND_FILES = [
 ] as const;
 
 export interface Glow { x: number; y: number; radius: number; color: RGB; strength: number; /** Not dimmed by the calm top of the card. */ anchored?: boolean }
+/** A soft wedge of light, like a stage light, fanning out from a point above the card. */
+export interface Beam { x: number; y: number; angle: number; spread: number; length: number; color: RGB; strength: number }
 export interface Ring { x: number; y: number; radius: number; width: number; color: RGB; strength: number }
 export interface ArtworkSpec {
   top: RGB;
   bottom: RGB;
+  /** The colors the picture is made of, for the banner. */
+  palette: RGB[];
   glows: Glow[];
+  beams: Beam[];
   rings: Ring[];
   /** The brightest any pixel may be, so the pass's text keeps at least 4.5:1 contrast everywhere. */
   maxLuminance: number;
@@ -80,10 +85,24 @@ export function artworkSpec(style: ResolvedStyle): ArtworkSpec | undefined {
     strength: 0.6,
     anchored: true,
   })));
+  // Big shapes survive Wallet's blur where fine detail doesn't: a few wide beams of light cross the card.
+  const beams: Beam[] = Array.from({ length: 6 }, (_, index) => {
+    const fromLeft = index % 2 === 0;
+    return {
+      x: fromLeft ? 0.02 + random() * 0.25 : 0.73 + random() * 0.25,
+      y: -0.08,
+      // Measured from straight down; positive leans right.
+      angle: (fromLeft ? 1 : -1) * (0.12 + random() * 0.65),
+      spread: 0.1 + random() * 0.12,
+      length: 1.0 + random() * 0.8,
+      color: palette[(index + 2) % palette.length],
+      strength: 0.5 + random() * 0.4,
+    };
+  });
   const ringX = 0.15 + random() * 0.7;
   const rings: Ring[] = [0.5, 0.82].map((radius, index) => ({ x: ringX, y: 1.05 + random() * 0.15, radius, width: 0.07, color: palette[index], strength: 0.3 }));
   const bottom = base.map((channel, index) => Math.round(channel + (palette[0][index] - channel) * 0.35)) as RGB;
-  return { top: base, bottom, glows, rings, maxLuminance };
+  return { top: base, bottom, palette, glows, beams, rings, maxLuminance };
 }
 
 /** Raw RGB pixels, row by row. Colors are added as light (linear), then no pixel is allowed past `maxLuminance`. */
@@ -93,6 +112,7 @@ export function renderArtwork(spec: ArtworkSpec, width: number, height: number):
   const top = spec.top.map(srgbToLinear) as RGB;
   const bottom = spec.bottom.map(srgbToLinear) as RGB;
   const glows = spec.glows.map((glow) => ({ ...glow, light: glowLight(glow.color, spec.maxLuminance) }));
+  const beams = spec.beams.map((beam) => ({ ...beam, light: glowLight(beam.color, spec.maxLuminance) }));
   const rings = spec.rings.map((ring) => ({ ...ring, light: glowLight(ring.color, spec.maxLuminance) }));
 
   for (let y = 0; y < height; y++) {
@@ -108,6 +128,14 @@ export function renderArtwork(spec: ArtworkSpec, width: number, height: number):
         const dx = u - glow.x, dy = (v - glow.y) * aspect;
         const distance = Math.sqrt(dx * dx + dy * dy) / glow.radius;
         if (distance < 1) { const weight = smooth(1 - distance) * glow.strength * (glow.anchored ? 1 : lower); r += glow.light[0] * weight; g += glow.light[1] * weight; b += glow.light[2] * weight; }
+      }
+      for (const beam of beams) {
+        const dx = u - beam.x, dy = (v - beam.y) * aspect;
+        const away = Math.abs(Math.atan2(dx, dy) - beam.angle);
+        if (away < beam.spread) {
+          const reach = Math.sqrt(dx * dx + dy * dy) / beam.length;
+          if (reach < 1) { const weight = smooth(1 - away / beam.spread) * smooth(1 - reach) * beam.strength * lower; r += beam.light[0] * weight; g += beam.light[1] * weight; b += beam.light[2] * weight; }
+        }
       }
       for (const ring of rings) {
         const dx = u - ring.x, dy = (v - ring.y) * aspect;
@@ -207,4 +235,74 @@ export function renderTicketLogo(scale: number, color: RGB): Uint8Array {
 export function ticketLogoFiles(style: ResolvedStyle): Record<string, Buffer> {
   const color = hexToRgb(style.foregroundColor);
   return Object.fromEntries(LOGO_FILES.map(({ name, scale }) => [name, encodePng(LOGO_POINTS.width * scale, LOGO_POINTS.height * scale, renderTicketLogo(scale, color), 4)]));
+}
+
+/**
+ * A banner for the top of the card (Wallet's "strip" image). Unlike the background, Wallet doesn't blur it, so
+ * it carries a few crisp fine lines as well as soft color. The title is drawn over it, so it keeps to the same
+ * brightness limit. Apple documents event ticket strips as 375 × 98 points (checked 2026-10-10, D28).
+ */
+export const STRIP_POINTS = { width: 375, height: 98 } as const;
+export const STRIP_FILES = [
+  { name: "strip.png", scale: 1 },
+  { name: "strip@2x.png", scale: 2 },
+  { name: "strip@3x.png", scale: 3 },
+] as const;
+
+export function renderStrip(spec: ArtworkSpec, width: number, height: number): Uint8Array {
+  const output = new Uint8Array(width * height * 3);
+  const aspect = height / width;
+  const random = seeded(`strip${spec.palette.join()}`);
+  const left = glowLight(spec.palette[1], spec.maxLuminance * 0.7), right = glowLight(spec.palette[0], spec.maxLuminance * 0.7);
+  const base = spec.top.map(srgbToLinear) as RGB;
+  const glows = Array.from({ length: 4 }, (_, index) => ({
+    x: (index + random() * 0.8) / 4, y: 0.15 + random() * 0.7, radius: 0.16 + random() * 0.2,
+    light: glowLight(spec.palette[(index + 1) % spec.palette.length], spec.maxLuminance), strength: 0.5 + random() * 0.5,
+  }));
+  // Fine concentric lines, centered near the right edge: the one crisp detail on the card.
+  const center = { x: 0.9 + random() * 0.08, y: 0.35 + random() * 0.3 };
+  const lineLight = glowLight(spec.palette[2], spec.maxLuminance);
+  const step = 0.055, lineWidth = 1.2 / STRIP_POINTS.width;
+  for (let y = 0; y < height; y++) {
+    const v = (y + 0.5) / height;
+    // The bottom edge fades toward the card's own color so the banner never ends in a hard seam.
+    const fade = smooth((v - 0.7) / 0.3) * 0.6;
+    for (let x = 0; x < width; x++) {
+      const u = (x + 0.5) / width;
+      const across = smooth(u);
+      let r = left[0] + (right[0] - left[0]) * across, g = left[1] + (right[1] - left[1]) * across, b = left[2] + (right[2] - left[2]) * across;
+      for (const glow of glows) {
+        const dx = u - glow.x, dy = (v - glow.y) * aspect;
+        const distance = Math.sqrt(dx * dx + dy * dy) / glow.radius;
+        if (distance < 1) { const weight = smooth(1 - distance) * glow.strength; r += glow.light[0] * weight; g += glow.light[1] * weight; b += glow.light[2] * weight; }
+      }
+      const dx = u - center.x, dy = (v - center.y) * aspect;
+      const radius = Math.sqrt(dx * dx + dy * dy);
+      const nearest = Math.round(radius / step) * step;
+      if (nearest > 0.05) {
+        const line = Math.min(1, Math.max(0, 0.5 - (Math.abs(radius - nearest) - lineWidth / 2) * width));
+        // The lines fade out away from the center so they never run behind the title on the left.
+        const reach = smooth(1 - radius / 0.75) * 0.5;
+        r += lineLight[0] * line * reach; g += lineLight[1] * line * reach; b += lineLight[2] * line * reach;
+      }
+      r += (base[0] - r) * fade; g += (base[1] - g) * fade; b += (base[2] - b) * fade;
+      const brightness = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      if (brightness > spec.maxLuminance) { const factor = spec.maxLuminance / brightness; r *= factor; g *= factor; b *= factor; }
+      const offset = (y * width + x) * 3;
+      output[offset] = Math.min(255, Math.max(0, linearToSrgb(r)));
+      output[offset + 1] = Math.min(255, Math.max(0, linearToSrgb(g)));
+      output[offset + 2] = Math.min(255, Math.max(0, linearToSrgb(b)));
+    }
+  }
+  return output;
+}
+
+/** The banner files for the pass package, or nothing when these colors don't suit a picture. */
+export function stripFiles(style: ResolvedStyle): Record<string, Buffer> | undefined {
+  const spec = artworkSpec(style);
+  if (!spec) return undefined;
+  return Object.fromEntries(STRIP_FILES.map(({ name, scale }) => {
+    const width = STRIP_POINTS.width * scale, height = STRIP_POINTS.height * scale;
+    return [name, encodePng(width, height, renderStrip(spec, width, height))];
+  }));
 }

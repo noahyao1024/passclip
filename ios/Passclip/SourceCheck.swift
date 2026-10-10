@@ -11,17 +11,46 @@ enum SourceCheck {
         var warnings: [String]
     }
 
-    static func apply(to passes: [ExtractedPass], source: String) -> Outcome {
-        let checker = Checker(source: source)
+    /// `readerPrefersLatin`: the person doesn't read Chinese, Japanese or Korean, so a name the document gives
+    /// in Latin letters is used instead of its Chinese form (the other form is kept in the pass notes).
+    static func apply(to passes: [ExtractedPass], source: String, readerPrefersLatin: Bool = ReaderLanguage.prefersLatin) -> Outcome {
+        let checker = Checker(source: source, readerPrefersLatin: readerPrefersLatin)
         var warnings: [String] = []
         let checked = passes.map { checker.check($0, warnings: &warnings) }
         var seen = Set<String>()
         return Outcome(passes: checked, warnings: warnings.filter { seen.insert($0).inserted })
     }
 
+    /// Chinese characters in PDFs often come as Kangxi radicals (U+2F00 block) or compatibility ideographs. They look
+    /// the same as the usual characters but aren't equal to them, so they are mapped to the usual ones.
+    static func cleanCJK(_ text: String) -> String {
+        guard text.unicodeScalars.contains(where: { (0x2E80...0x2FDF).contains($0.value) || (0xF900...0xFAFF).contains($0.value) }) else { return text }
+        var result = String.UnicodeScalarView()
+        for scalar in text.unicodeScalars {
+            if (0x2E80...0x2FDF).contains(scalar.value) || (0xF900...0xFAFF).contains(scalar.value) { result.append(contentsOf: String(scalar).precomposedStringWithCompatibilityMapping.unicodeScalars) }
+            else { result.append(scalar) }
+        }
+        return String(result)
+    }
+
+    enum Script { case cjk, latin, other }
+
+    /// The script most of a text's letters are in.
+    static func script(of text: String) -> Script {
+        var cjk = 0, latin = 0
+        for scalar in text.unicodeScalars {
+            switch scalar.value {
+            case 0x3400...0x4DBF, 0x4E00...0x9FFF, 0x3040...0x30FF, 0xAC00...0xD7AF, 0x2E80...0x2FDF, 0xF900...0xFAFF: cjk += 1
+            case 0x41...0x5A, 0x61...0x7A, 0xC0...0x24F: latin += 1
+            default: break
+            }
+        }
+        return cjk > latin ? .cjk : (latin > 0 ? .latin : .other)
+    }
+
     /// Lowercase, no accents, one kind of quote and dash, single spaces.
     static func normalize(_ text: String) -> String {
-        var result = text.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
+        var result = cleanCJK(text).folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
         result = result.replacingOccurrences(of: "[‘’‛ʼ`´]", with: "'", options: .regularExpression)
         result = result.replacingOccurrences(of: "[“”„]", with: "\"", options: .regularExpression)
         result = result.replacingOccurrences(of: "[‐-―]", with: "-", options: .regularExpression)
@@ -57,8 +86,10 @@ enum SourceCheck {
         let plain: String
         let compact: String
         let lines: [(text: String, key: [Character])]
+        let readerPrefersLatin: Bool
 
-        init(source: String) {
+        init(source: String, readerPrefersLatin: Bool) {
+            self.readerPrefersLatin = readerPrefersLatin
             plain = SourceCheck.normalize(source)
             compact = plain.filter { $0.isLetter || $0.isNumber }
             lines = source.components(separatedBy: .newlines)
@@ -112,6 +143,12 @@ enum SourceCheck {
                 else if let line = repair(title) { pass.title = line }
                 else { warnings.append("Check the title: it doesn't match your document word for word.") }
             }
+            // A bilingual ticket: a reader of English gets the English name, and the Chinese one goes on the back.
+            if readerPrefersLatin, pass.type != "boardingPass", SourceCheck.script(of: pass.title) == .cjk,
+               let latin = ImportJSONBuilder.clean(pass.titleLatin), SourceCheck.script(of: latin) == .latin {
+                let verified = has(latin) ? latin : repair(latin)
+                if let verified { pass.alternateTitle = pass.title; pass.title = verified }
+            }
             pass.shortTitle = groundedShortTitle(pass.shortTitle, title: pass.title)
             pass.organization = name(pass.organization, "organizer", &warnings)
             pass.holderName = name(pass.holderName, "name", &warnings)
@@ -140,5 +177,13 @@ enum SourceCheck {
             let used = words(short)
             return !used.isEmpty && used.allSatisfy(known.contains) ? short : nil
         }
+    }
+}
+
+/// Which script the person reads, from the iPhone's first language.
+enum ReaderLanguage {
+    static var prefersLatin: Bool {
+        let code = Locale.preferredLanguages.first.flatMap { Locale(identifier: $0).language.languageCode?.identifier } ?? "en"
+        return !["zh", "ja", "ko"].contains(code)
     }
 }

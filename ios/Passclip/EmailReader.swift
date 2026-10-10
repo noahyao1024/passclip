@@ -48,6 +48,8 @@ enum EmailReader {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
             do {
+                // PDFs often hold Chinese characters in their Kangxi radical forms (⼗ for 十); they look the same but aren't.
+                let email = SourceCheck.cleanCJK(email)
                 let found = try await OnDeviceExtractor.extract(from: email)
                 // Every copied name and number must be in the text; see SourceCheck.
                 let checked = SourceCheck.apply(to: found, source: email)
@@ -113,7 +115,9 @@ struct GeneratedPass {
     var type: String
     @Guide(description: "Event name or route, copied from the email. If it is written in several languages, copy the first one only.")
     var title: String
-    @Guide(description: "A short version of the title for a small space: 2 to 6 words copied from the title, without the city or year. Empty when the title is already short.")
+    @Guide(description: "The event name in Latin letters (English), copied from the email, only when the email also gives the name in another script such as Chinese. Empty otherwise.")
+    var titleLatin: String?
+    @Guide(description: "A short version of the title for a small space: 2 to 6 words copied from titleLatin when it isn't empty, otherwise from title, without the city or year. Empty when the title is already short.")
     var shortTitle: String?
     @Guide(description: "Ticket seller, airline or organizer, like SISTIC or Ticketmaster")
     var organization: String?
@@ -154,7 +158,7 @@ struct GeneratedPass {
 
     var extracted: ExtractedPass {
         ExtractedPass(
-            type: type, title: title, shortTitle: shortTitle, organization: organization, confirmationCode: confirmationCode, holderName: holderName,
+            type: type, title: title, titleLatin: titleLatin, shortTitle: shortTitle, organization: organization, confirmationCode: confirmationCode, holderName: holderName,
             start: start, end: end, timeZone: timeZone, venueName: venueName, venueCity: venueCity, venueAddress: venueAddress,
             seatCategory: seatCategory, seatSection: seatSection, seatRow: seatRow, seatNumber: seatNumber, seatEntrance: seatEntrance,
             transitMode: transitMode, carrier: carrier, number: number, fromCode: fromCode, fromCity: fromCity,
@@ -169,8 +173,7 @@ struct GeneratedPass {
 enum OnDeviceExtractor {
     private static let instructions = """
     You read ticket, booking and membership emails and fill in the fields.
-    - Copy names, places, codes and numbers exactly as written, in the email's own language. Never translate or invent anything.
-    - If a name is written in more than one language, copy only the first one.
+    - Copy names, places, codes and numbers exactly as written. Never translate or invent anything.
     - Leave a field empty when the email doesn't say. Never guess.
     - Write times as local time at the place: YYYY-MM-DDTHH:mm.
     - Never write barcode or QR code data.
@@ -183,9 +186,7 @@ enum OnDeviceExtractor {
     static func extract(from email: String) async throws -> [ExtractedPass] {
         let model = SystemLanguageModel.default
         let today = Date.now.formatted(.iso8601.year().month().day())
-        // The person's language decides which one to copy when a name is written in several.
-        let language = Locale(identifier: "en").localizedString(forLanguageCode: Locale.current.language.languageCode?.identifier ?? "en") ?? "English"
-        let fullInstructions = instructions + "\nThe person reads \(language). If a name is written in several languages, copy the \(language) one when there is one, and otherwise the first.\nToday is \(today)."
+        let fullInstructions = instructions + "\nWhen the event name is written in more than one language, put the first version in title and the version in Latin letters (English) in titleLatin.\nToday is \(today)."
         let prompt = try await fitPrompt(for: email, instructions: fullInstructions, model: model)
 
         let session = LanguageModelSession(model: model, instructions: fullInstructions)

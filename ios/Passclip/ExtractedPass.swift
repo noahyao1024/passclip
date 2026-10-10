@@ -5,6 +5,10 @@ import Foundation
 struct ExtractedPass: Equatable {
     var type = "generic"
     var title = ""
+    /// The title in Latin letters, when the document also gives it in another script such as Chinese.
+    var titleLatin: String?
+    /// The title in the other script, kept for the back of the pass when the Latin one is used.
+    var alternateTitle: String?
     /// A shorter form of the title, copied from it, for the small space on a pass.
     var shortTitle: String?
     var organization: String?
@@ -121,6 +125,7 @@ enum ImportJSONBuilder {
         if let transit { fields.append(("transit", transit)) }
         var notes = clean(item.notes)
         if title != fullTitle { notes = ["Full name: \(fullTitle)", notes].compactMap { $0 }.joined(separator: "\n") }
+        if let alternate = clean(item.alternateTitle) { notes = ["Also: \(alternate)", notes].compactMap { $0 }.joined(separator: "\n") }
         add(&fields, "notes", notes)
         if !links.isEmpty {
             fields.append(("attachments", .array(links.map { .object([("title", .string(String($0.title.prefix(60)))), ("url", .string($0.url)), ("kind", .string("link"))]) })))
