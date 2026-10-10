@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contrastRatio, contrastingForeground, DEFAULT_COLORS, MIN_CONTRAST, normalizeColors } from "./colors";
+import { contrastRatio, contrastingForeground, DEFAULT_COLORS, designColors, MIN_CONTRAST, normalizeColors } from "./colors";
 
 describe("pass colors", () => {
   it("uses the WCAG sRGB luminance calculation", () => {
@@ -59,5 +59,29 @@ describe("pass colors", () => {
     const result = normalizeColors("coupon", { foregroundColor: "#FFFFFF" });
     expect(result.style.backgroundColor).toBe(DEFAULT_COLORS.coupon.backgroundColor);
     expect(contrastRatio(result.style.labelColor, result.style.backgroundColor)).toBeGreaterThanOrEqual(MIN_CONTRAST);
+  });
+
+  describe("designed colors for event tickets", () => {
+    it("are readable for every seed and the same for the same seed", () => {
+      for (let index = 0; index < 400; index++) {
+        const seed = `Organizer ${index}\nShow ${index * 13}`;
+        const style = designColors(seed);
+        expect(contrastRatio(style.foregroundColor, style.backgroundColor)).toBeGreaterThanOrEqual(MIN_CONTRAST);
+        expect(contrastRatio(style.labelColor, style.backgroundColor)).toBeGreaterThanOrEqual(MIN_CONTRAST);
+        expect(designColors(seed)).toEqual(style);
+      }
+    });
+
+    it("differ from event to event", () => {
+      const colors = new Set(Array.from({ length: 60 }, (_, index) => designColors(`Show ${index}`).backgroundColor));
+      expect(colors.size).toBeGreaterThan(40);
+    });
+
+    it("apply only to event tickets that have no colors of their own", () => {
+      expect(normalizeColors("eventTicket", undefined, "SISTIC\nShow").style).toEqual(designColors("SISTIC\nShow"));
+      expect(normalizeColors("eventTicket", undefined).style).toEqual(DEFAULT_COLORS.eventTicket);
+      expect(normalizeColors("coupon", undefined, "SISTIC\nShow").style).toEqual(DEFAULT_COLORS.coupon);
+      expect(normalizeColors("eventTicket", { backgroundColor: "#3B2A20" }, "SISTIC\nShow").style.backgroundColor).toBe("#3B2A20");
+    });
   });
 });

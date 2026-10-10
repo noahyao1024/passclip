@@ -3,6 +3,7 @@
 import { useEffect, useId, useState, type CSSProperties } from "react";
 import type { NormalizedPass } from "../lib/import/normalize";
 import type { Barcode } from "../lib/import/types";
+import { artworkCss } from "../lib/pass/artwork";
 import type { PassField, PassLayout } from "../lib/pass/fields";
 import { FORMAT_NAMES } from "@/lib/barcode/formats";
 import { renderBarcode, type BarcodeImage } from "./barcode-preview";
@@ -69,10 +70,13 @@ export function PassPreview({ pass, layout }: PassPreviewProps) {
   const [back, setBack] = useState(false);
   const previewId = useId();
   const barcode = useBarcodePreview(pass.barcode);
+  // An event ticket's picture is drawn behind the whole card in Wallet; this is the same plan as CSS.
+  const picture = pass.type === "eventTicket" && !back ? artworkCss(pass.style) : undefined;
   const colors = {
     "--pass-background": pass.style.backgroundColor,
     "--pass-foreground": pass.style.foregroundColor,
     "--pass-label": pass.style.labelColor,
+    ...(picture ? { backgroundImage: picture } : {}),
   } as CSSProperties;
 
   return (

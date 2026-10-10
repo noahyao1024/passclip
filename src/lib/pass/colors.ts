@@ -1,4 +1,5 @@
 import type { Pass, Style } from "../import/types";
+import { seeded } from "./seed";
 
 export type ResolvedStyle = Required<Style>;
 
@@ -12,13 +13,15 @@ export const DEFAULT_COLORS: Record<Pass["type"], ResolvedStyle> = {
   generic: { backgroundColor: "#2F3640", foregroundColor: "#FFFFFF", labelColor: "#C9D1DC" },
 };
 
-type RGB = [number, number, number];
+export type RGB = [number, number, number];
 
-function rgb(hex: string): RGB {
+export function hexToRgb(hex: string): RGB {
   return [1, 3, 5].map((start) => Number.parseInt(hex.slice(start, start + 2), 16)) as RGB;
 }
+const rgb = hexToRgb;
 
-function luminance(hex: string): number {
+/** WCAG relative luminance of a six-digit sRGB hex color. */
+export function luminance(hex: string): number {
   const linear = rgb(hex).map((channel) => {
     const sRGB = channel / 255;
     return sRGB <= 0.04045 ? sRGB / 12.92 : ((sRGB + 0.055) / 1.055) ** 2.4;
@@ -56,9 +59,50 @@ export function deriveLabelColor(foreground: string, background: string): string
   return mix(foreground, background, readable);
 }
 
-/** Resolve optional colors after schema validation; every readability fix has a warning. */
-export function normalizeColors(type: Pass["type"], input?: Style): { style: ResolvedStyle; warnings: string[] } {
-  const defaults = DEFAULT_COLORS[type];
+export function hslToRgb(hue: number, saturation: number, lightness: number): RGB {
+  const h = ((hue % 360) + 360) % 360;
+  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
+  const x = chroma * (1 - Math.abs(((h / 60) % 2) - 1));
+  const match = lightness - chroma / 2;
+  const [r, g, b] = h < 60 ? [chroma, x, 0] : h < 120 ? [x, chroma, 0] : h < 180 ? [0, chroma, x] : h < 240 ? [0, x, chroma] : h < 300 ? [x, 0, chroma] : [chroma, 0, x];
+  return [r, g, b].map((channel) => Math.round((channel + match) * 255)) as RGB;
+}
+
+export function rgbToHsl([red, green, blue]: RGB): { hue: number; saturation: number; lightness: number } {
+  const [r, g, b] = [red / 255, green / 255, blue / 255];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const lightness = (max + min) / 2;
+  if (max === min) return { hue: 0, saturation: 0, lightness };
+  const delta = max - min;
+  const saturation = delta / (1 - Math.abs(2 * lightness - 1));
+  const hue = max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
+  return { hue: (hue * 60 + 360) % 360, saturation, lightness };
+}
+
+const toHex = (color: RGB) => `#${color.map((channel) => channel.toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+
+/** Hues that look good as a deep background: indigo, violet, magenta, rose, red, rust, teal, blues, emerald. */
+const DESIGN_HUES = [248, 266, 284, 304, 324, 344, 6, 24, 196, 214, 230, 172];
+
+/**
+ * A deep, readable color scheme picked from a seed (the event's organizer and title), so every event
+ * looks different and the same event always looks the same. White text and a tinted label read on it.
+ */
+export function designColors(seed: string): ResolvedStyle {
+  const random = seeded(seed);
+  const hue = DESIGN_HUES[Math.floor(random() * DESIGN_HUES.length)] + (random() - 0.5) * 10;
+  const backgroundColor = toHex(hslToRgb(hue, 0.5 + random() * 0.15, 0.15 + random() * 0.04));
+  return { backgroundColor, foregroundColor: "#FFFFFF", labelColor: toHex(hslToRgb(hue, 0.7, 0.88)) };
+}
+
+/**
+ * Resolve optional colors after schema validation; every readability fix has a warning. Event tickets
+ * with no colors of their own get a scheme picked from `seed`; everything else uses the type's default.
+ */
+export function normalizeColors(type: Pass["type"], input?: Style, seed?: string): { style: ResolvedStyle; warnings: string[] } {
+  const designed = type === "eventTicket" && seed !== undefined && !input?.backgroundColor && !input?.foregroundColor && !input?.labelColor;
+  const defaults = designed ? designColors(seed) : DEFAULT_COLORS[type];
   const backgroundColor = (input?.backgroundColor ?? defaults.backgroundColor).toUpperCase();
   const warnings: string[] = [];
   let foregroundColor = (input?.foregroundColor ?? (input?.backgroundColor ? contrastingForeground(backgroundColor) : defaults.foregroundColor)).toUpperCase();

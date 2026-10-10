@@ -46,7 +46,7 @@ export function normalizeImport(input: PassclipImport, options: NormalizeOptions
   }
 
   const passes = value.passes.map((pass, index): NormalizedPass => {
-    const colors = normalizeColors(pass.type, pass.style);
+    const colors = normalizeColors(pass.type, pass.style, `${pass.organization ?? ""}\n${pass.title}`);
     warnings.push(...colors.warnings.map((message): Warning => ({ kind: "fix", pass: index, message })));
     warnings.push(...(pass.warnings ?? []).map((message): Warning => ({ from: "ai", pass: index, message })));
     const normalized: NormalizedPass = { ...pass, style: colors.style, needsTimeZone: false };
