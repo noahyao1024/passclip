@@ -45,6 +45,8 @@ struct WalletField: Decodable {
     let timeStyle: String?
     let currencyCode: String?
     let attributedValue: String?
+    /// 1 for an event ticket's second row of auxiliary fields.
+    let row: Int?
 }
 struct WalletLayout: Decodable {
     let headerFields: [WalletField]

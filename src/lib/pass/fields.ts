@@ -14,6 +14,8 @@ export interface PassField {
   ignoresTimeZone?: boolean;
   currencyCode?: string;
   attributedValue?: string;
+  /** Event tickets only: 1 puts an auxiliary field in a second row (Apple's pass docs, checked 2026-10-10). */
+  row?: 1;
 }
 
 export type TransitType = "PKTransitTypeAir" | "PKTransitTypeTrain" | "PKTransitTypeBus" | "PKTransitTypeBoat" | "PKTransitTypeGeneric";
@@ -100,11 +102,12 @@ function departureZone(value: string | undefined, timeZone: string | undefined):
 export function layoutPass(pass: Pass, options: LayoutOptions = {}): PassLayout {
   const layout: PassLayout = { headerFields: [], primaryFields: [], secondaryFields: [], auxiliaryFields: [], backFields: [], warnings: [] };
   const overflow: PassField[] = [];
-  const caps: Record<FrontGroup, number> = { headerFields: 2, primaryFields: pass.type === "boardingPass" ? 2 : 1, secondaryFields: 3, auxiliaryFields: 4 };
+  // An event ticket can have a second row of up to four auxiliary fields, which fills the space above the barcode.
+  const caps: Record<FrontGroup, number> = { headerFields: 2, primaryFields: pass.type === "boardingPass" ? 2 : 1, secondaryFields: 3, auxiliaryFields: pass.type === "eventTicket" ? 8 : 4 };
   const front = (group: FrontGroup, ...fields: (PassField | undefined)[]) => {
     for (const field of fields) {
       if (!field) continue;
-      if (layout[group].length < caps[group]) layout[group].push(field);
+      if (layout[group].length < caps[group]) layout[group].push(group === "auxiliaryFields" && layout[group].length >= 4 ? { ...field, row: 1 } : field);
       else overflow.push(field);
     }
   };
@@ -122,10 +125,11 @@ export function layoutPass(pass: Pass, options: LayoutOptions = {}): PassLayout 
       // A venue name is long. Next to another field, Wallet runs the two together, so it gets a row to itself.
       front("secondaryFields", text("venue", "Venue", pass.venue?.name));
       front("auxiliaryFields", text("section", "Section", pass.seat?.section), text("row", "Row", pass.seat?.row), text("seat", "Seat", pass.seat?.number), text("entrance", "Entrance", pass.seat?.entrance));
-      // The seat category (like "CAT 2") and the booking number fill spare room on the front, so a
-      // ticket without a seat number isn't left nearly empty. When the row is full they stay on the back.
-      if (hasRoom("auxiliaryFields")) front("auxiliaryFields", text("category", "Category", pass.seat?.description));
-      if (hasRoom("auxiliaryFields")) front("auxiliaryFields", text("booking", "Booking", pass.confirmationCode));
+      // The seat category, booking number, name, ticket number and price fill the second row, so the
+      // card isn't left empty above the barcode. Whatever doesn't fit stays on the back.
+      for (const field of [text("category", "Category", pass.seat?.description), text("booking", "Booking", pass.confirmationCode), text("name", "Name", pass.holderName), text("ticket", "Ticket", pass.ticketNumber), money("price_front", "Price", pass.price)]) {
+        if (field && hasRoom("auxiliaryFields")) front("auxiliaryFields", field);
+      }
       front("auxiliaryFields", ...extraFields);
       break;
     case "boardingPass": {
@@ -168,7 +172,7 @@ export function layoutPass(pass: Pass, options: LayoutOptions = {}): PassLayout 
     else layout.warnings.push({ kind: "fix", message: `Removed “${attachment.title}” because its link isn't a full https:// link.` });
   });
   const onFront = (key: string) => layout.auxiliaryFields.some((field) => field.key === key);
-  back(text("holder_back", "Name", pass.holderName), onFront("booking") ? undefined : text("confirmation", "Confirmation", pass.confirmationCode), text("ticket_number", "Ticket number", pass.ticketNumber), money("price", "Price", pass.price));
+  back(onFront("name") ? undefined : text("holder_back", "Name", pass.holderName), onFront("booking") ? undefined : text("confirmation", "Confirmation", pass.confirmationCode), onFront("ticket") ? undefined : text("ticket_number", "Ticket number", pass.ticketNumber), onFront("price_front") ? undefined : money("price", "Price", pass.price));
   back(text("venue_back", "Venue", pass.venue?.name), text("address", "Address", pass.venue?.address), text("room", "Room", pass.venue?.room));
   if (pass.type === "boardingPass") {
     back(text("from_back", "From", pass.transit?.from.name ?? pass.transit?.from.city ?? pass.transit?.from.code), text("departure_terminal", "Departure terminal", pass.transit?.from.terminal), text("to_back", "To", pass.transit?.to.name ?? pass.transit?.to.city ?? pass.transit?.to.code), text("arrival_terminal", "Arrival terminal", pass.transit?.to.terminal));
@@ -189,7 +193,8 @@ export function layoutPass(pass: Pass, options: LayoutOptions = {}): PassLayout 
   const displayLimits: Record<FrontGroup, number> = { headerFields: 16, primaryFields: pass.type === "boardingPass" ? 18 : 40, secondaryFields: 36, auxiliaryFields: 20 };
   for (const group of Object.keys(displayLimits) as FrontGroup[]) {
     for (const field of layout[group]) {
-      const labelTooLong = [...field.label].length > 20;
+      // A main field's label can be a subtitle, like a tour name, and has the whole width.
+      const labelTooLong = [...field.label].length > (group === "primaryFields" ? 40 : 20);
       const valueTooLong = !field.dateStyle && !field.currencyCode && ([...String(field.value)].length > displayLimits[group] || /\r|\n/.test(String(field.value)));
       if (labelTooLong || valueTooLong) layout.warnings.push({ message: `“${field.label || "Main field"}” may be too long for the front of a Wallet pass. Check the preview; Wallet may shorten it.` });
     }

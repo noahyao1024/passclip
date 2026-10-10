@@ -48,8 +48,10 @@ describe("JSON made from a PDF by the iPhone app", () => {
     expect(back.source.value).toBe("Imported from SISTIC E-Ticket");
     expect(back.att_1).toMatchObject({ label: "Original ticket", value: "https://sistic.stixcloud.com/Stix/eticket/downloadEticketLive.htm?linkId=IkT1mGrIek" });
     expect(String(back.notes.value)).toMatch(/^Full name: 2026 Deyunshe 30th Anniversary/);
-    // With a full seat the row is Section, Row, Seat, Category; the booking number then stays on the back.
-    expect(layout.auxiliaryFields.map((field) => [field.label, field.value])).toEqual([["Section", "A7"], ["Row", "22"], ["Seat", "13"], ["Category", "CAT 2"]]);
-    expect(back.confirmation.value).toBe("20261005-001796");
+    // Fields fill the first row of four, then the second, above the barcode.
+    expect(layout.auxiliaryFields.map((field) => [field.label, field.value, field.row ?? 0])).toEqual([
+      ["Section", "A7", 0], ["Row", "22", 0], ["Seat", "13", 0], ["Category", "CAT 2", 0], ["Booking", "20261005-001796", 1], ["Name", "DAMAI", 1],
+    ]);
+    expect(back.confirmation).toBeUndefined();
   });
 });

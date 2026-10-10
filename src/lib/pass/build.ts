@@ -4,7 +4,7 @@ import path from "node:path";
 import { PKPass } from "passkit-generator";
 import type { NormalizedPass } from "../import/normalize";
 import type { Source } from "../import/types";
-import { artworkFiles, stripFiles, ticketLogoFiles } from "./artwork";
+import { artworkFiles, ticketLogoFiles } from "./artwork";
 import { mapToPassJson } from "./map";
 import { inspectSigningConfig, readSigningConfig, type Env, type SigningConfig } from "./signing";
 
@@ -27,9 +27,7 @@ export async function buildPass(pass: NormalizedPass, config: SigningConfig, opt
   for (const name of names) {
     files[name] = await readFile(path.join(process.cwd(), "pass-models/default.pass", name));
   }
-  // The banner is the one crisp picture a ticket can show, and it takes up room above the fields. Apple's guide says
-  // not to combine a strip with a background, so the first real iPhone check decides whether both stay (D28).
-  if (artwork) Object.assign(files, artwork, stripFiles(pass.style), ticketLogoFiles(pass.style));
+  if (artwork) Object.assign(files, artwork, ticketLogoFiles(pass.style));
   const pkpass = new PKPass(files, {
     signerCert: config.signerCertPem, signerKey: config.signerKeyPem,
     signerKeyPassphrase: config.signerKeyPassphrase, wwdr: config.wwdrCertPem,

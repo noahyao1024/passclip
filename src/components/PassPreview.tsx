@@ -108,7 +108,8 @@ export function PassPreview({ pass, layout }: PassPreviewProps) {
             </div>
             <FieldRow fields={layout.primaryFields} className="pass-primary" />
             <FieldRow fields={layout.secondaryFields} className="pass-secondary" />
-            <FieldRow fields={layout.auxiliaryFields} className="pass-auxiliary" />
+            <FieldRow fields={layout.auxiliaryFields.filter((field) => !field.row)} className="pass-auxiliary" />
+            <FieldRow fields={layout.auxiliaryFields.filter((field) => field.row === 1)} className="pass-auxiliary" />
             {barcode.result && barcode.result.status !== "failed" && pass.barcode ? (
               <div className={`pass-barcode barcode-${pass.barcode.format}`}>
                 {/* This local SVG data URL doesn't need external image optimization. */}
