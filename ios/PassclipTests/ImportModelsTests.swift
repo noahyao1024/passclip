@@ -441,3 +441,51 @@ final class PrintedCodeTests: XCTestCase {
         XCTAssertNil(SourceCheck.apply(to: [item], source: "Section A7  Door / Entrance East").passes[0].seatEntrance)
     }
 }
+
+final class BilingualTitleTests: XCTestCase {
+    // What PDFKit really returned for the SISTIC ticket: English first, then Chinese in Kangxi radical forms.
+    private let document = """
+    2026 Deyunshe 30th Anniversary - Yue Yunpeng & Sun Yue Cross Talk Show in Singapore
+    “三⼗⽽⽴ 岁⽉流⾦” 2026 德云社成⽴
+    三⼗周年系列演出之岳云鹏、孙越相声专场新加坡站
+    10-Oct-2026 07:30 PM
+    Resorts World Convention Centre
+    """
+    private let english = "2026 Deyunshe 30th Anniversary - Yue Yunpeng & Sun Yue Cross Talk Show in Singapore"
+
+    func testMapsKangxiRadicalsToTheUsualCharactersAndTellsScripts() {
+        XCTAssertEqual(SourceCheck.cleanCJK("三⼗⽽⽴ 岁⽉流⾦"), "三十而立 岁月流金")
+        XCTAssertEqual(SourceCheck.cleanCJK("Plain text ①"), "Plain text ①", "Only Chinese compatibility forms change")
+        XCTAssertEqual(SourceCheck.script(of: "三十周年系列演出"), .cjk)
+        XCTAssertEqual(SourceCheck.script(of: english), .latin)
+        XCTAssertEqual(SourceCheck.script(of: "10:30"), .other)
+        XCTAssertTrue(SourceCheck.normalize("三⼗周年").contains("三十周年"), "Comparisons ignore the two forms")
+    }
+
+    func testAReaderOfEnglishGetsTheEnglishNameAndTheChineseGoesOnTheBack() throws {
+        var item = ExtractedPass(type: "eventTicket", title: "三十周年系列演出之岳云鹏、孙越相声专场新加坡站", titleLatin: english)
+        item.shortTitle = "Yue Yunpeng & Sun Yue Cross Talk Show"
+        let outcome = SourceCheck.apply(to: [item], source: SourceCheck.cleanCJK(document), readerPrefersLatin: true)
+        XCTAssertEqual(outcome.passes[0].title, english)
+        XCTAssertEqual(outcome.passes[0].alternateTitle, "三十周年系列演出之岳云鹏、孙越相声专场新加坡站")
+        XCTAssertEqual(outcome.passes[0].shortTitle, "Yue Yunpeng & Sun Yue Cross Talk Show")
+        let json = try XCTUnwrap(ImportJSONBuilder.json(from: outcome.passes))
+        let pass = try XCTUnwrap(((try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])?["passes"] as? [[String: Any]])?.first)
+        XCTAssertEqual(pass["title"] as? String, "Yue Yunpeng & Sun Yue Cross Talk Show")
+        XCTAssertEqual(pass["notes"] as? String, "Also: 三十周年系列演出之岳云鹏、孙越相声专场新加坡站\nFull name: \(english)")
+    }
+
+    func testNothingChangesForAReaderOfChineseOrWhenTheEnglishNameIsNotInTheDocument() {
+        let chinese = "三十周年系列演出之岳云鹏、孙越相声专场新加坡站"
+        let item = ExtractedPass(type: "eventTicket", title: chinese, titleLatin: english)
+        XCTAssertEqual(SourceCheck.apply(to: [item], source: SourceCheck.cleanCJK(document), readerPrefersLatin: false).passes[0].title, chinese)
+        let invented = ExtractedPass(type: "eventTicket", title: chinese, titleLatin: "Yue Yunpeng Comedy Gala 2026 Live")
+        let outcome = SourceCheck.apply(to: [invented], source: SourceCheck.cleanCJK(document), readerPrefersLatin: true)
+        XCTAssertEqual(outcome.passes[0].title, chinese)
+        XCTAssertNil(outcome.passes[0].alternateTitle)
+        // An English title stays as it is, with no note.
+        let already = SourceCheck.apply(to: [ExtractedPass(type: "eventTicket", title: english)], source: document, readerPrefersLatin: true)
+        XCTAssertEqual(already.passes[0].title, english)
+        XCTAssertNil(already.passes[0].alternateTitle)
+    }
+}
