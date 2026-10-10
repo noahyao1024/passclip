@@ -5,6 +5,8 @@ import Foundation
 struct ExtractedPass: Equatable {
     var type = "generic"
     var title = ""
+    /// A shorter form of the title, copied from it, for the small space on a pass.
+    var shortTitle: String?
     var organization: String?
     var confirmationCode: String?
     var holderName: String?
@@ -31,6 +33,15 @@ struct ExtractedPass: Equatable {
     var notes: String?
 }
 
+/// What the pass should say about where it came from, beyond the AI's own findings.
+struct ImportContext {
+    var source = DocumentSource()
+    /// Links the person chose to put on the back of the pass.
+    var links: [FoundLink] = []
+    /// A barcode was read from the document, so the "add it yourself" reminder isn't needed.
+    var hasCodes = false
+}
+
 /// Turns what the AI found into Passclip's import JSON (schema 1.1). The server still validates and
 /// normalizes it like any pasted reply, so this only has to be careful, not complete: anything unclear
 /// is left out rather than guessed.
@@ -41,15 +52,17 @@ enum ImportJSONBuilder {
     static let barcodeWarning = "The barcode isn't included. Add it from a screenshot of your ticket."
 
     /// Returns nil when nothing usable was found.
-    static func json(from extracted: [ExtractedPass]) -> String? {
-        var warnings: [String] = []
-        let passes = extracted.compactMap { node(for: $0, warnings: &warnings) }
+    static func json(from extracted: [ExtractedPass], context: ImportContext = ImportContext(), extraWarnings: [String] = []) -> String? {
+        var warnings = extraWarnings
+        let passes = extracted.compactMap { node(for: $0, links: context.links, warnings: &warnings) }
         guard !passes.isEmpty else { return nil }
         warnings.append(aiWarning)
-        warnings.append(barcodeWarning)
+        if !context.hasCodes { warnings.append(barcodeWarning) }
+        var source: [(String, Node)] = [("kind", .string(context.source.kind))]
+        add(&source, "subject", clean(context.source.name).map { String($0.prefix(200)) })
         return Node.object([
             ("schemaVersion", .string("1.1")),
-            ("source", .object([("kind", .string("email"))])),
+            ("source", .object(source)),
             ("passes", .array(passes)),
             ("warnings", .array(warnings.map(Node.string))),
         ]).render()
@@ -57,10 +70,12 @@ enum ImportJSONBuilder {
 
     // MARK: Passes
 
-    private static func node(for item: ExtractedPass, warnings: inout [String]) -> Node? {
+    private static func node(for item: ExtractedPass, links: [FoundLink], warnings: inout [String]) -> Node? {
         let organization = clean(item.organization)
         guard let fullTitle = clean(item.title) ?? organization else { return nil }
-        let title = shortTitle(fullTitle, city: clean(item.venueCity))
+        // Wallet cuts long titles off. Use the model's short title when it has one, else trim this one.
+        let title = fullTitle.count <= titleLimit ? fullTitle
+            : (clean(item.shortTitle).flatMap { $0.count <= titleLimit ? $0 : nil } ?? shortTitle(fullTitle, city: clean(item.venueCity)))
 
         var type = passTypes.contains(item.type) ? item.type : "generic"
         var transit: Node?
@@ -75,13 +90,15 @@ enum ImportJSONBuilder {
         var fields: [(String, Node)] = [("type", .string(type)), ("title", .string(title))]
         add(&fields, "organization", organization)
         add(&fields, "confirmationCode", clean(item.confirmationCode))
-        add(&fields, "holderName", clean(item.holderName))
+        add(&fields, "holderName", clean(item.holderName).map { $0.replacingOccurrences(of: #"(\s+[.,;:·]+)+$"#, with: "", options: .regularExpression) })
 
         let start = localTime(item.start), end = localTime(item.end)
         if clean(item.start) != nil && start == nil { warnings.append("Couldn't read the date or time for “\(title)”, so it was left out.") }
         add(&fields, "start", start)
         add(&fields, "end", start == nil ? nil : end)
-        add(&fields, "timeZone", start == nil ? nil : zone(item.timeZone))
+        // The place usually says the zone: "Singapore" is Asia/Singapore. Without it, the app asks.
+        let place = type == "boardingPass" ? item.fromCity : item.venueCity
+        add(&fields, "timeZone", start == nil ? nil : zone(item.timeZone) ?? zone(forCity: place))
 
         let venueName = clean(item.venueName) ?? clean(item.venueAddress) ?? clean(item.venueCity)
         if let venueName {
@@ -102,6 +119,9 @@ enum ImportJSONBuilder {
         var notes = clean(item.notes)
         if title != fullTitle { notes = ["Full name: \(fullTitle)", notes].compactMap { $0 }.joined(separator: "\n") }
         add(&fields, "notes", notes)
+        if !links.isEmpty {
+            fields.append(("attachments", .array(links.map { .object([("title", .string(String($0.title.prefix(60)))), ("url", .string($0.url)), ("kind", .string("link"))]) })))
+        }
         return .object(fields)
     }
 
@@ -169,6 +189,14 @@ enum ImportJSONBuilder {
         let hasSeconds = match.range(at: 7).location != NSNotFound
         let hasZone = match.range(at: 8).location != NSNotFound
         return hasSeconds || hasZone ? text : text + ":00"
+    }
+
+    /// "Singapore" gives Asia/Singapore, when exactly one zone is named for the city.
+    static func zone(forCity city: String?) -> String? {
+        func key(_ text: String) -> String { text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil).replacingOccurrences(of: "_", with: " ") }
+        guard let wanted = clean(city).map(key) else { return nil }
+        let matches = TimeZone.knownTimeZoneIdentifiers.filter { id in id.contains("/") && id.split(separator: "/").last.map { key(String($0)) } == wanted }
+        return matches.count == 1 ? matches[0] : nil
     }
 
     static func zone(_ value: String?) -> String? {

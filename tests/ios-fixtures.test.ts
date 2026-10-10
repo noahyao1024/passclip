@@ -28,3 +28,28 @@ describe("JSON made by the iPhone app's email reader", () => {
     expect(layout.auxiliaryFields.map((field) => [field.label, field.value])).toEqual([["Category", "CAT 2"], ["Booking", "1004940771101"]]);
   });
 });
+
+describe("JSON made from a PDF by the iPhone app", () => {
+  const result = processImport(readFileSync("ios/PassclipTests/Fixtures/ai-pdf-ticket.json", "utf8"));
+
+  it("is a valid import with a short title, so nothing needs shortening", () => {
+    expect(result.ok ? [] : result.errors).toEqual([]);
+    if (!result.ok) return;
+    const [pass] = result.value.passes;
+    expect(Array.from(pass.title).length).toBeLessThanOrEqual(60);
+    expect(pass.timeZone).toBe("Asia/Singapore");
+    expect(result.warnings.map((warning) => warning.message)).toEqual(["Read by Apple Intelligence on this iPhone. Check every detail against your email."]);
+  });
+
+  it("puts the document name and the original link on the back, and the full title in the notes", () => {
+    if (!result.ok) throw new Error("Fixture failed to import");
+    const layout = layoutPass(result.value.passes[0], { source: result.value.source });
+    const back = Object.fromEntries(layout.backFields.map((field) => [field.key, field]));
+    expect(back.source.value).toBe("Imported from SISTIC E-Ticket");
+    expect(back.att_1).toMatchObject({ label: "Original ticket", value: "https://sistic.stixcloud.com/Stix/eticket/downloadEticketLive.htm?linkId=IkT1mGrIek" });
+    expect(String(back.notes.value)).toMatch(/^Full name: 2026 Deyunshe 30th Anniversary/);
+    // With a full seat the row is Section, Row, Seat, Category; the booking number then stays on the back.
+    expect(layout.auxiliaryFields.map((field) => [field.label, field.value])).toEqual([["Section", "A7"], ["Row", "22"], ["Seat", "13"], ["Category", "CAT 2"]]);
+    expect(back.confirmation.value).toBe("20261005-001796");
+  });
+});

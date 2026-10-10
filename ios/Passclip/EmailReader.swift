@@ -37,19 +37,21 @@ enum EmailReader {
         return .unavailable("Reading emails needs iOS 26 or later with Apple Intelligence. Use the AI-chat steps below instead.")
     }
 
-    static func extract(from email: String) async throws -> String {
+    static func extract(from email: String, context: ImportContext = ImportContext()) async throws -> String {
         #if DEBUG
         if ProcessInfo.processInfo.environment["PASSCLIP_FAKE_AI"] == "1" {
             try await Task.sleep(for: .seconds(1))
-            guard let json = ImportJSONBuilder.json(from: [DebugSample.ticket]) else { throw EmailReaderError.nothingFound }
+            guard let json = ImportJSONBuilder.json(from: [DebugSample.ticket], context: context) else { throw EmailReaderError.nothingFound }
             return json
         }
         #endif
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
             do {
-                let passes = try await OnDeviceExtractor.extract(from: email)
-                guard let json = ImportJSONBuilder.json(from: passes) else { throw EmailReaderError.nothingFound }
+                let found = try await OnDeviceExtractor.extract(from: email)
+                // Every copied name and number must be in the text; see SourceCheck.
+                let checked = SourceCheck.apply(to: found, source: email)
+                guard let json = ImportJSONBuilder.json(from: checked.passes, context: context, extraWarnings: checked.warnings) else { throw EmailReaderError.nothingFound }
                 return json
             } catch let error as EmailReaderError {
                 throw error
@@ -109,11 +111,13 @@ struct GeneratedEmail {
 struct GeneratedPass {
     @Guide(description: "eventTicket for concerts, shows, movies, sports and exhibitions; boardingPass for flights, trains, buses and ferries; storeCard for memberships and loyalty cards; coupon for offers; generic for anything else", .anyOf(["eventTicket", "boardingPass", "storeCard", "coupon", "generic"]))
     var type: String
-    @Guide(description: "Short event name or route, under 60 characters. Drop the city, translations and subtitles. Copy the wording from the email.")
+    @Guide(description: "Event name or route, copied from the email. If it is written in several languages, copy the first one only.")
     var title: String
-    @Guide(description: "Seller, airline or organizer")
+    @Guide(description: "A short version of the title for a small space: 2 to 6 words copied from the title, without the city or year. Empty when the title is already short.")
+    var shortTitle: String?
+    @Guide(description: "Ticket seller, airline or organizer, like SISTIC or Ticketmaster")
     var organization: String?
-    @Guide(description: "Order, booking or confirmation number")
+    @Guide(description: "Order, booking, confirmation, reference or transaction number")
     var confirmationCode: String?
     @Guide(description: "Ticket holder or passenger name")
     var holderName: String?
@@ -124,6 +128,7 @@ struct GeneratedPass {
     @Guide(description: "IANA time zone of the place, like Asia/Singapore. Fill it whenever the venue's city or country is known.")
     var timeZone: String?
     var venueName: String?
+    @Guide(description: "City of the venue. If it isn't written separately, take it from the event name or address, like Singapore")
     var venueCity: String?
     var venueAddress: String?
     @Guide(description: "Seat category such as CAT 2, Gold or Balcony")
@@ -142,12 +147,12 @@ struct GeneratedPass {
     var toCode: String?
     var toCity: String?
     var gate: String?
-    @Guide(description: "The most important rules or instructions, in at most three short sentences")
+    @Guide(description: "Entry rules, refund terms or what to bring, only if the email states them, in at most three short sentences. Leave empty if there are none. Never a date, time or web address.")
     var notes: String?
 
     var extracted: ExtractedPass {
         ExtractedPass(
-            type: type, title: title, organization: organization, confirmationCode: confirmationCode, holderName: holderName,
+            type: type, title: title, shortTitle: shortTitle, organization: organization, confirmationCode: confirmationCode, holderName: holderName,
             start: start, end: end, timeZone: timeZone, venueName: venueName, venueCity: venueCity, venueAddress: venueAddress,
             seatCategory: seatCategory, seatSection: seatSection, seatRow: seatRow, seatNumber: seatNumber,
             transitMode: transitMode, carrier: carrier, number: number, fromCode: fromCode, fromCity: fromCity,
@@ -163,6 +168,7 @@ enum OnDeviceExtractor {
     private static let instructions = """
     You read ticket, booking and membership emails and fill in the fields.
     - Copy names, places, codes and numbers exactly as written, in the email's own language. Never translate or invent anything.
+    - If a name is written in more than one language, copy only the first one.
     - Leave a field empty when the email doesn't say. Never guess.
     - Write times as local time at the place: YYYY-MM-DDTHH:mm.
     - Never write barcode or QR code data.

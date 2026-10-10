@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.1",
+  "source": {
+    "kind": "pdf",
+    "subject": "SISTIC E-Ticket"
+  },
+  "passes": [
+    {
+      "type": "eventTicket",
+      "title": "Yue Yunpeng & Sun Yue Cross Talk Show",
+      "organization": "SISTIC",
+      "confirmationCode": "20261005-001796",
+      "holderName": "DAMAI",
+      "start": "2026-10-10T19:30:00",
+      "timeZone": "Asia/Singapore",
+      "venue": {
+        "name": "Resorts World Convention Centre",
+        "city": "Singapore"
+      },
+      "seat": {
+        "section": "A7",
+        "row": "22",
+        "number": "13",
+        "description": "CAT 2"
+      },
+      "notes": "Full name: 2026 Deyunshe 30th Anniversary - Yue Yunpeng & Sun Yue Cross Talk Show in Singapore",
+      "attachments": [
+        {
+          "title": "Original ticket",
+          "url": "https://sistic.stixcloud.com/Stix/eticket/downloadEticketLive.htm?linkId=IkT1mGrIek",
+          "kind": "link"
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "Read by Apple Intelligence on this iPhone. Check every detail against your email."
+  ]
+}

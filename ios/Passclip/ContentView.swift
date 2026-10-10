@@ -16,6 +16,8 @@ struct ContentView: View {
     @State private var copied = false
     @State private var choosingFile = false
     @State private var suggestedCodes: [FoundCode]
+    @State private var source: DocumentSource
+    @State private var linkChoices: [LinkChoice]
     @State private var showingSettings = false
     @State private var walletPass: PKPass?
     @State private var showingWallet = false
@@ -24,11 +26,14 @@ struct ContentView: View {
     private let onClose: (() -> Void)?
     private let startOnAppear: Bool
 
-    /// `startOnAppear` makes the pass right away, for text shared from Mail or Safari.
-    init(initialText: String = "", initialCodes: [FoundCode] = [], initialError: String = "", onClose: (() -> Void)? = nil, startOnAppear: Bool = false) {
-        _text = State(initialValue: initialText)
-        _suggestedCodes = State(initialValue: initialCodes)
-        _error = State(initialValue: initialError)
+    /// `startOnAppear` makes the pass right away, for text, links and files shared from Mail, Safari or Files.
+    init(_ incoming: Incoming = Incoming(), onClose: (() -> Void)? = nil, startOnAppear: Bool = false) {
+        _text = State(initialValue: incoming.text)
+        _suggestedCodes = State(initialValue: incoming.codes)
+        _source = State(initialValue: incoming.source)
+        // The first link is the original; the others start switched off.
+        _linkChoices = State(initialValue: incoming.links.enumerated().map { LinkChoice(link: $0.element, on: $0.offset == 0) })
+        _error = State(initialValue: incoming.problem)
         self.onClose = onClose
         self.startOnAppear = startOnAppear
     }
@@ -44,12 +49,14 @@ struct ContentView: View {
                     if result == nil {
                         header
                         if reader.isReady {
-                            pasteCard(number: nil, title: "Paste your ticket email", placeholder: "Select the text of your ticket email, copy it, and paste it here.",
-                                      label: "Ticket email or AI reply", footnote: "Your email is read on this iPhone. Only the pass details found in it go to your Passclip server for the preview.")
+                            pasteCard(number: nil, title: "Paste your ticket email", placeholder: "Select the text of your ticket email, copy it, and paste it here. A link to your ticket works too.",
+                                      label: "Ticket email, link or AI reply", footnote: "Your email is read on this iPhone. Only the pass details found in it go to your Passclip server for the preview.")
+                            linksCard
                             otherAI
                         } else {
                             if case .unavailable(let reason) = reader { Label(reason, systemImage: "sparkles").font(.footnote).foregroundStyle(Brand.muted) }
                             askStep
+                            if source.kind != "email" { Label("Your document's text is in the box below. Copy it into your AI chat after the prompt, then paste the reply here.", systemImage: "info.circle").font(.footnote).foregroundStyle(Brand.muted) }
                             pasteCard(number: 2, title: "Paste the AI's reply", placeholder: "{ \"schemaVersion\": \"1.1\", \"passes\": [ … ] }",
                                       label: "AI reply", footnote: "Previews are checked by your Passclip server and not saved.")
                         }
@@ -118,6 +125,24 @@ struct ContentView: View {
         }
     }
 
+    /// Links found in a document or opened by the person, for the back of the pass.
+    @ViewBuilder private var linksCard: some View {
+        if readsEmails && !linkChoices.isEmpty {
+            Card {
+                Label("Links for the back of the pass", systemImage: "link").font(.subheadline.weight(.semibold)).foregroundStyle(Brand.ink)
+                ForEach($linkChoices) { $choice in
+                    Toggle(isOn: $choice.on) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(choice.link.title).font(.subheadline.weight(.semibold)).foregroundStyle(Brand.ink)
+                            Text(choice.link.display).font(.caption).foregroundStyle(Brand.muted).lineLimit(1).truncationMode(.middle)
+                        }
+                    }
+                }
+                Text("Found in your document. In Wallet, a link lets you open the original.").font(.caption).foregroundStyle(Brand.muted)
+            }
+        }
+    }
+
     private func pasteCard(number: Int?, title: String, placeholder: String, label: String, footnote: String) -> some View {
         Card {
             if let number { StepHeading(number: number, title: title) } else { Text(title).font(.headline).foregroundStyle(Brand.ink) }
@@ -137,11 +162,11 @@ struct ContentView: View {
                 }
             }
             HStack(spacing: 8) {
-                PasteButton(payloadType: String.self) { strings in if let first = strings.first { text = first } }
+                PasteButton(payloadType: String.self) { strings in if let first = strings.first { text = first; resetSource() } }
                     .buttonBorderShape(.roundedRectangle(radius: 10)).labelStyle(.titleAndIcon)
                 Button { choosingFile = true } label: { Label("PDF or file", systemImage: "folder") }.buttonStyle(SecondaryButtonStyle())
                 Spacer()
-                if hasText { Button("Clear", role: .destructive) { text = ""; error = "" }.font(.subheadline) }
+                if hasText { Button("Clear", role: .destructive) { text = ""; error = ""; resetSource() }.font(.subheadline) }
             }
             Label(footnote, systemImage: "lock")
                 .font(.caption).foregroundStyle(Brand.muted)
@@ -270,26 +295,29 @@ struct ContentView: View {
             let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
             guard size <= DocumentReader.maxBytes else { throw DocumentError.tooLarge }
             let data = try Data(contentsOf: url)
-            Task { await openDocument(data) }
+            let name = url.lastPathComponent
+            Task { await openDocument(data, name: name) }
         } catch { self.error = error.localizedDescription }
     }
 
-    @MainActor private func openDocument(_ data: Data) async {
+    @MainActor private func openDocument(_ data: Data, name: String?) async {
         busy = true; busyLabel = "Reading your document…"; error = ""; defer { busy = false; busyLabel = "" }
-        do {
-            let document = try await DocumentReader.read(data)
-            text = document.text; suggestedCodes = document.codes
-        } catch { self.error = error.localizedDescription }
+        do { apply(try await DocumentReader.read(data, name: name)) }
+        catch { self.error = error.localizedDescription }
     }
 
-    /// A pasted email is read on this iPhone first; an AI reply (JSON) goes straight to the preview.
+    /// A pasted link is opened first, then the text is read on this iPhone. An AI reply (JSON) goes straight to the preview.
     @MainActor private func makePass() async {
         error = ""
+        if let url = LinkFetcher.link(in: text) {
+            guard await openLink(url) else { return }
+        }
         if readsEmails {
-            busy = true; busyLabel = "Reading your email…"
+            busy = true; busyLabel = "Reading your ticket…"
             let sent = text
+            let context = ImportContext(source: source, links: linkChoices.filter(\.on).map(\.link), hasCodes: !suggestedCodes.isEmpty)
             do {
-                let json = try await EmailReader.extract(from: sent)
+                let json = try await EmailReader.extract(from: sent, context: context)
                 // Editing while the model works must not replace the new text with a stale answer.
                 guard text == sent else { busy = false; busyLabel = ""; return }
                 text = json
@@ -301,6 +329,25 @@ struct ContentView: View {
         }
         await preview()
     }
+
+    /// Opens a web link from this iPhone and puts what it holds in the box.
+    @MainActor private func openLink(_ url: URL) async -> Bool {
+        busy = true; busyLabel = "Opening the link…"; defer { busy = false; busyLabel = "" }
+        do {
+            apply(try await LinkFetcher.open(url))
+            return true
+        } catch {
+            self.error = error.localizedDescription
+            return false
+        }
+    }
+
+    private func apply(_ document: ReadDocument) {
+        text = document.text; suggestedCodes = document.codes; source = document.source
+        linkChoices = document.links.enumerated().map { LinkChoice(link: $0.element, on: $0.offset == 0) }
+    }
+
+    private func resetSource() { source = DocumentSource(); suggestedCodes = []; linkChoices = [] }
 
     @MainActor private func preview() async {
         busy = true; busyLabel = "Checking your pass…"; error = ""; defer { busy = false; busyLabel = "" }
@@ -330,6 +377,13 @@ struct ContentView: View {
             walletPass = try PKPass(data: data); showingWallet = true
         } catch { self.error = error.localizedDescription }
     }
+}
+
+/// A link that may go on the back of the pass, and whether the person wants it.
+private struct LinkChoice: Identifiable, Equatable {
+    var link: FoundLink
+    var on: Bool
+    var id: String { link.url }
 }
 
 /// Reads a barcode from a screenshot or photo, on this device, and offers it for one pass.

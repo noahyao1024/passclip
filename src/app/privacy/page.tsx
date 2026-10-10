@@ -84,6 +84,13 @@ export default function PrivacyPage() {
         date and venue, go to the server to make the preview and the Wallet
         pass, and the server does not store them.
       </p>
+      <p>
+        PDFs, screenshots and photos you choose or share are read the same way,
+        on the iPhone. If you paste a web link, the app opens it from your
+        iPhone, as Safari would, and reads the page there. The page and the
+        file never go to Passclip. If you switch it on, a link found in your
+        document goes on the back of the pass.
+      </p>
 
       <h2>Files you attach</h2>
       <p>
