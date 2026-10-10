@@ -97,6 +97,11 @@ export default function PrivacyPage() {
         pass details only so it can be put inside your Wallet pass. The server
         does not store it.
       </p>
+      <p>
+        Add to Calendar in the app opens Apple’s own new-event screen, filled in
+        on your iPhone. You save the event yourself; Passclip never reads your
+        calendar.
+      </p>
 
       <h2>Files you attach</h2>
       <p>

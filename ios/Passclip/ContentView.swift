@@ -1,4 +1,5 @@
 import SwiftUI
+import EventKit
 import PassKit
 import PhotosUI
 import UniformTypeIdentifiers
@@ -21,6 +22,10 @@ struct ContentView: View {
     /// Event pictures the person chose, by pass number, and one a ticket page offered.
     @State private var pictures: [Int: UIImage] = [:]
     @State private var suggestedPicture: UIImage?
+    /// Each pass's colors before a picture changed them, to put back if the picture is removed.
+    @State private var savedStyles: [Int: JSONValue] = [:]
+    @State private var calendarEvent: EKEvent?
+    @ObservedObject private var pending = PendingInput.shared
     @State private var showingSettings = false
     @State private var walletPass: PKPass?
     @State private var showingWallet = false
@@ -86,7 +91,23 @@ struct ContentView: View {
             .sheet(isPresented: $showingWallet) { if let walletPass { WalletSheet(pass: walletPass) { showingWallet = false; self.walletPass = nil } } }
             .task { if startOnAppear && hasText { await makePass() } }
             .onChange(of: scenePhase) { _, phase in if phase == .active { reader = EmailReader.status } }
-            .onChange(of: text) { _, _ in result = nil; notice = ""; pictures = [:] }
+            .onChange(of: text) { _, _ in result = nil; notice = ""; pictures = [:]; savedStyles = [:] }
+            .onReceive(pending.$incoming) { incoming in
+                // Siri or Shortcuts sent a ticket: start over with it and make the pass.
+                guard let incoming else { return }
+                pending.incoming = nil
+                apply(incoming)
+                if !incoming.text.isEmpty { Task { await makePass() } }
+            }
+            .sheet(isPresented: Binding(get: { calendarEvent != nil }, set: { if !$0 { calendarEvent = nil } })) {
+                if let calendarEvent {
+                    CalendarSheet(event: calendarEvent, store: Self.eventStore) { action in
+                        self.calendarEvent = nil
+                        if action == .saved { notice = "Added to your calendar." }
+                    }
+                    .ignoresSafeArea()
+                }
+            }
             .onChange(of: server) { _, _ in result = nil }
             .onChange(of: timeZone) { _, _ in if result != nil { Task { await preview() } } }
         }
@@ -237,7 +258,13 @@ struct ContentView: View {
                 if result.value.passes.count > 1 { Text("Pass \(index + 1)").font(.footnote.weight(.semibold)).foregroundStyle(Brand.muted) }
                 NativePassPreview(pass: result.value.passes[index], layout: result.layouts[index], artwork: result.artwork(at: index), picture: pictures[index])
                 if ["eventTicket", "generic"].contains(result.value.passes[index]["type"]?.string ?? "") {
-                    EventPictureCard(picture: Binding(get: { pictures[index] }, set: { pictures[index] = $0 }))
+                    EventPictureCard(picture: Binding(get: { pictures[index] }, set: { setPicture($0, at: index) }))
+                }
+                if CalendarEvent.offered(for: result.value.passes[index]) {
+                    Button { calendarEvent = CalendarEvent.event(for: result.value.passes[index], in: Self.eventStore) } label: {
+                        Label("Add to Calendar", systemImage: "calendar.badge.plus")
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
                 }
                 CodeFromImage(current: result.value.passes[index]["barcode"], suggested: suggestedCodes) { code in
                     self.result?.value.setBarcode(code, at: index)
@@ -353,6 +380,38 @@ struct ContentView: View {
         text = document.text; suggestedCodes = document.codes; source = document.source
         suggestedPicture = document.picture.flatMap(UIImage.init(data:))
         linkChoices = document.links.enumerated().map { LinkChoice(link: $0.element, on: $0.offset == 0) }
+    }
+
+    private static let eventStore = EKEventStore()
+
+    private func apply(_ incoming: Incoming) {
+        text = incoming.text; suggestedCodes = incoming.codes; source = incoming.source; error = incoming.problem
+        linkChoices = incoming.links.enumerated().map { LinkChoice(link: $0.element, on: $0.offset == 0) }
+        suggestedPicture = incoming.picture.flatMap(UIImage.init(data:))
+    }
+
+    /// A picture also gives the pass its colors, so card and poster match. Removing it puts the colors back.
+    private func setPicture(_ image: UIImage?, at index: Int) {
+        guard let pass = result?.value.passes[safe: index] else { return }
+        pictures[index] = image
+        if let image, let colors = PosterImage.passColors(from: image) {
+            if savedStyles[index] == nil { savedStyles[index] = pass["style"] ?? .null }
+            let style = JSONValue.object(["backgroundColor": .string(colors.background), "foregroundColor": .string(colors.foreground), "labelColor": .string(colors.label)])
+            result?.value.passes[index] = pass.setting("style", to: style)
+        } else if image == nil, let saved = savedStyles.removeValue(forKey: index) {
+            result?.value.passes[index] = saved == .null ? pass.removing("style") : pass.setting("style", to: saved)
+        } else { return }
+        Task { await refreshArtwork(index) }
+    }
+
+    /// The picture behind the card follows the pass's colors, so ask the server for it again.
+    @MainActor private func refreshArtwork(_ index: Int) async {
+        guard let current = result, let payload = try? current.value.singlePassText(at: index) else { return }
+        guard let response = try? await PassclipService(server: server).preview(text: payload, timeZone: timeZone),
+              result?.value.passes.indices.contains(index) == true else { return }
+        if result?.artwork == nil { result?.artwork = Array(repeating: nil, count: result?.value.passes.count ?? 0) }
+        if result?.artwork?.indices.contains(index) == true { result?.artwork?[index] = response.artwork?.first ?? nil }
+        if let style = response.value.passes.first?["style"] { result?.value.passes[index] = result!.value.passes[index].setting("style", to: style) }
     }
 
     private func resetSource() { source = DocumentSource(); suggestedCodes = []; linkChoices = []; suggestedPicture = nil }
@@ -523,4 +582,8 @@ private struct SettingsSheet: View {
         }
         .presentationDetents([.medium])
     }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
 }

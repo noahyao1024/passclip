@@ -1,4 +1,5 @@
 import XCTest
+import EventKit
 import CoreImage
 import UIKit
 #if canImport(FoundationModels)
@@ -545,5 +546,56 @@ final class EventPictureTests: XCTestCase {
         XCTAssertEqual(missed.passes[0].confirmationCode, "20261005-001796")
         XCTAssertEqual(SourceCheck.apply(to: [ExtractedPass(type: "eventTicket", title: "Order Summary")], source: "Order Summary\nBooking reference: AB12CD").passes[0].confirmationCode, "AB12CD")
         XCTAssertNil(SourceCheck.apply(to: [ExtractedPass(type: "eventTicket", title: "Order Summary")], source: "Order Summary\nThank you").passes[0].confirmationCode)
+    }
+}
+
+final class CalendarAndColorTests: XCTestCase {
+    private func pass(_ json: String) throws -> JSONValue { try JSONDecoder().decode(JSONValue.self, from: Data(json.utf8)) }
+
+    func testMakesACalendarEventLikeTheWebsite() throws {
+        let ticket = try pass(#"{"type":"eventTicket","title":"Cross Talk Show","start":"2026-10-10T19:30:00+08:00","timeZone":"Asia/Singapore","venue":{"name":"Resorts World Convention Centre","city":"Singapore"},"seat":{"section":"A7","row":"22","number":"13"},"confirmationCode":"20261005-001796"}"#)
+        XCTAssertTrue(CalendarEvent.offered(for: ticket))
+        let event = try XCTUnwrap(CalendarEvent.event(for: ticket, in: EKEventStore()))
+        XCTAssertEqual(event.title, "Cross Talk Show")
+        XCTAssertEqual(event.startDate, CalendarEvent.parse("2026-10-10T11:30:00Z"))
+        XCTAssertEqual(event.endDate.timeIntervalSince(event.startDate), 7_200)
+        XCTAssertEqual(event.location, "Resorts World Convention Centre, Singapore")
+        XCTAssertEqual(event.notes, "Section A7, row 22, seat 13\nConfirmation: 20261005-001796")
+        XCTAssertEqual(event.alarms?.first?.relativeOffset, -7_200)
+        XCTAssertEqual(event.timeZone?.identifier, "Asia/Singapore")
+
+        let flight = try pass(#"{"type":"boardingPass","title":"Tokyo to Paris","start":"2026-12-03T10:25:00+09:00","transit":{"mode":"air","number":"ZQ 101","from":{"code":"HND","city":"Tokyo"},"to":{"code":"CDG","city":"Paris"}}}"#)
+        let trip = try XCTUnwrap(CalendarEvent.event(for: flight, in: EKEventStore()))
+        XCTAssertEqual(trip.title, "ZQ 101 Tokyo to Paris")
+        XCTAssertEqual(trip.location, "Tokyo → Paris")
+        XCTAssertEqual(trip.alarms?.first?.relativeOffset, -10_800)
+
+        XCTAssertFalse(CalendarEvent.offered(for: try pass(#"{"type":"storeCard","title":"Card","start":"2026-12-03T10:25:00+09:00"}"#)))
+        XCTAssertFalse(CalendarEvent.offered(for: try pass(#"{"type":"eventTicket","title":"No date"}"#)))
+        XCTAssertTrue(try XCTUnwrap(CalendarEvent.event(for: try pass(#"{"type":"eventTicket","title":"Fair","start":"2026-12-03"}"#), in: EKEventStore())).isAllDay)
+    }
+
+    func testTakesThePassColorsFromThePicturesMainHue() throws {
+        func image(_ color: UIColor) -> UIImage {
+            UIGraphicsImageRenderer(size: CGSize(width: 40, height: 60)).image { context in
+                color.setFill(); context.fill(CGRect(x: 0, y: 0, width: 40, height: 60))
+                UIColor.white.setFill(); context.fill(CGRect(x: 0, y: 0, width: 40, height: 10))
+            }
+        }
+        let red = try XCTUnwrap(PosterImage.passColors(from: image(UIColor(red: 0.9, green: 0.1, blue: 0.15, alpha: 1))))
+        XCTAssertEqual(red.foreground, "#FFFFFF")
+        let value = UInt32(red.background.dropFirst(), radix: 16)!
+        XCTAssertGreaterThan((value >> 16) & 255, value & 255, "A red poster gives a deep red card")
+        XCTAssertNil(PosterImage.passColors(from: image(.gray)), "A gray picture keeps the pass's own colors")
+        XCTAssertEqual(PosterImage.hex(hue: 0, saturation: 1, lightness: 0.5), "#FF0000")
+    }
+
+    @MainActor
+    func testSiriAndShortcutsHandTheTicketToTheApp() async throws {
+        let intent = MakePassIntent()
+        intent.text = "Order 123 for Show"
+        _ = try await intent.perform()
+        XCTAssertEqual(PendingInput.shared.incoming?.text, "Order 123 for Show")
+        PendingInput.shared.incoming = nil
     }
 }
