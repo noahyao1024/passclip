@@ -116,10 +116,11 @@ export function layoutPass(pass: Pass, options: LayoutOptions = {}): PassLayout 
 
   switch (pass.type) {
     case "eventTicket":
-      front("headerFields", date("date", "Date", pass.start, SHORT));
+      // Date and time sit in the header, so they stay visible when the pass is stacked in Wallet.
+      front("headerFields", date("date", "Date", pass.start, SHORT), pass.start?.includes("T") ? date("time", "Time", pass.start, NONE, SHORT) : undefined);
       front("primaryFields", text("title", pass.subtitle ?? "Event", pass.title));
-      // The header already shows the date, so "Starts" shows only the time, and only when there is one.
-      front("secondaryFields", pass.start?.includes("T") ? date("starts", "Starts", pass.start, NONE, SHORT) : undefined, text("venue", "Venue", pass.venue?.name));
+      // A venue name is long. Next to another field, Wallet runs the two together, so it gets a row to itself.
+      front("secondaryFields", text("venue", "Venue", pass.venue?.name));
       front("auxiliaryFields", text("section", "Section", pass.seat?.section), text("row", "Row", pass.seat?.row), text("seat", "Seat", pass.seat?.number), text("entrance", "Entrance", pass.seat?.entrance));
       // The seat category (like "CAT 2") and the booking number fill spare room on the front, so a
       // ticket without a seat number isn't left nearly empty. When the row is full they stay on the back.

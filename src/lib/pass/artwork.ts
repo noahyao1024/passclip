@@ -18,7 +18,7 @@ export const BACKGROUND_FILES = [
   { name: "background@3x.png", scale: 3 },
 ] as const;
 
-export interface Glow { x: number; y: number; radius: number; color: RGB; strength: number }
+export interface Glow { x: number; y: number; radius: number; color: RGB; strength: number; /** Not dimmed by the calm top of the card. */ anchored?: boolean }
 export interface Ring { x: number; y: number; radius: number; width: number; color: RGB; strength: number }
 export interface ArtworkSpec {
   top: RGB;
@@ -70,6 +70,15 @@ export function artworkSpec(style: ResolvedStyle): ArtworkSpec | undefined {
     color: palette[index % palette.length],
     strength: 0.55 + random() * 0.45,
   }));
+  // Wallet's stack shows only the top of each pass, so the top edge carries color too.
+  glows.push(...[0, 1].map((index): Glow => ({
+    x: index === 0 ? 0.05 + random() * 0.25 : 0.6 + random() * 0.3,
+    y: 0.02 + random() * 0.05,
+    radius: 0.42 + random() * 0.18,
+    color: palette[index === 0 ? 1 : 0],
+    strength: 0.6,
+    anchored: true,
+  })));
   const ringX = 0.15 + random() * 0.7;
   const rings: Ring[] = [0.5, 0.82].map((radius, index) => ({ x: ringX, y: 1.05 + random() * 0.15, radius, width: 0.07, color: palette[index], strength: 0.3 }));
   const bottom = base.map((channel, index) => Math.round(channel + (palette[0][index] - channel) * 0.35)) as RGB;
@@ -97,7 +106,7 @@ export function renderArtwork(spec: ArtworkSpec, width: number, height: number):
       for (const glow of glows) {
         const dx = u - glow.x, dy = (v - glow.y) * aspect;
         const distance = Math.sqrt(dx * dx + dy * dy) / glow.radius;
-        if (distance < 1) { const weight = smooth(1 - distance) * glow.strength * lower; r += glow.light[0] * weight; g += glow.light[1] * weight; b += glow.light[2] * weight; }
+        if (distance < 1) { const weight = smooth(1 - distance) * glow.strength * (glow.anchored ? 1 : lower); r += glow.light[0] * weight; g += glow.light[1] * weight; b += glow.light[2] * weight; }
       }
       for (const ring of rings) {
         const dx = u - ring.x, dy = (v - ring.y) * aspect;
@@ -153,4 +162,47 @@ export function artworkCss(style: ResolvedStyle): string | undefined {
     return `radial-gradient(circle at ${(glow.x * 100).toFixed(1)}% ${(glow.y / 1.1 * 100).toFixed(1)}%, ${css(light, Number(Math.min(1, 0.9 * glow.strength).toFixed(2)))} 0, transparent ${(glow.radius * 100).toFixed(0)}%)`;
   });
   return [...layers, `linear-gradient(to bottom, ${css(spec.top)}, ${css(spec.bottom)})`].join(", ");
+}
+
+/**
+ * A small ticket emblem for the header, in the pass's text color: a ticket with a notch on each side and
+ * a dashed tear line. It stands in for a brand logo, which Passclip can't know, and says what the pass is.
+ */
+export const LOGO_POINTS = { width: 36, height: 30 } as const;
+export const LOGO_FILES = [
+  { name: "logo.png", scale: 1 },
+  { name: "logo@2x.png", scale: 2 },
+  { name: "logo@3x.png", scale: 3 },
+] as const;
+
+export function renderTicketLogo(scale: number, color: RGB): Uint8Array {
+  const width = LOGO_POINTS.width * scale;
+  const height = LOGO_POINTS.height * scale;
+  const output = new Uint8Array(width * height * 4);
+  const center = { x: 18, y: 15 }, half = { x: 15, y: 10 }, radius = 3.5, notch = 3.2, tearX = 25.5;
+  const dashes = [0, 1, 2, 3, 4].map((index) => ({ x: tearX, y: 7.9 + index * 3.3 }));
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const px = (x + 0.5) / scale, py = (y + 0.5) / scale;
+      // Signed distance in points: negative inside the ticket.
+      const qx = Math.abs(px - center.x) - (half.x - radius), qy = Math.abs(py - center.y) - (half.y - radius);
+      let distance = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - radius;
+      for (const side of [center.x - half.x, center.x + half.x]) distance = Math.max(distance, notch - Math.hypot(px - side, py - center.y));
+      for (const dash of dashes) {
+        const dx = Math.abs(px - dash.x) - 0.65, dy = Math.abs(py - dash.y) - 1.05;
+        distance = Math.max(distance, -(Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) + Math.min(Math.max(dx, dy), 0)));
+      }
+      const alpha = Math.min(1, Math.max(0, 0.5 - distance * scale));
+      const offset = (y * width + x) * 4;
+      output[offset] = color[0]; output[offset + 1] = color[1]; output[offset + 2] = color[2];
+      output[offset + 3] = Math.round(alpha * 255);
+    }
+  }
+  return output;
+}
+
+/** The three logo files for an event ticket's package, drawn in its text color. */
+export function ticketLogoFiles(style: ResolvedStyle): Record<string, Buffer> {
+  const color = hexToRgb(style.foregroundColor);
+  return Object.fromEntries(LOGO_FILES.map(({ name, scale }) => [name, encodePng(LOGO_POINTS.width * scale, LOGO_POINTS.height * scale, renderTicketLogo(scale, color), 4)]));
 }

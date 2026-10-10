@@ -56,12 +56,16 @@ struct WalletLayout: Decodable {
 struct ImportedData: Decodable {
     var passes: [JSONValue]
     let source: JSONValue?
+    private static let printedFormats: Set<String> = ["code128", "code39", "codabar", "itf", "ean13"]
+
     /// Puts a code the person chose into pass `index`. The text under the code is kept only if the code didn't change.
     mutating func setBarcode(_ code: FoundCode, at index: Int) {
         guard passes.indices.contains(index) else { return }
         let previous = passes[index]["barcode"]
         var barcode: [String: JSONValue] = ["format": .string(code.format), "message": .string(code.message)]
         if previous?["message"]?.string == code.message, let alt = previous?["altText"] { barcode["altText"] = alt }
+        // A number-style code shows its number under the bars, like the ticket does, so staff can type it if scanning fails.
+        else if Self.printedFormats.contains(code.format), code.message.count <= 40 { barcode["altText"] = .string(code.message) }
         passes[index] = passes[index].setting("barcode", to: .object(barcode))
     }
     func singlePassText(at index: Int) throws -> String {

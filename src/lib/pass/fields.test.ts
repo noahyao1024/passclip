@@ -211,10 +211,10 @@ describe("estimated display limits", () => {
     expect(layout.backFields.find((field) => field.key === "x_1")?.value).toBe("D".repeat(300));
   });
 
-  it("shows only the time under Starts on an event ticket, since the header has the date", () => {
+  it("puts the date and time in an event ticket's header and the venue in a row of its own", () => {
     const timed = layoutPass({ type: "eventTicket", title: "Jazz", start: "2026-12-03T19:30:00+09:00", venue: { name: "Hall" } });
-    expect(timed.headerFields.map((field) => field.key)).toEqual(["date"]);
-    expect(timed.secondaryFields.map((field) => [field.key, field.dateStyle, field.timeStyle])).toEqual([["starts", "PKDateStyleNone", "PKDateStyleShort"], ["venue", undefined, undefined]]);
+    expect(timed.headerFields.map((field) => [field.key, field.dateStyle, field.timeStyle])).toEqual([["date", "PKDateStyleShort", "PKDateStyleNone"], ["time", "PKDateStyleNone", "PKDateStyleShort"]]);
+    expect(timed.secondaryFields.map((field) => field.key)).toEqual(["venue"]);
     const allDay = layoutPass({ type: "eventTicket", title: "Fair", start: "2026-12-03", venue: { name: "Park" } });
     expect(allDay.headerFields.map((field) => field.key)).toEqual(["date"]);
     expect(allDay.secondaryFields.map((field) => field.key)).toEqual(["venue"]);

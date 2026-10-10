@@ -45,10 +45,12 @@ describe("signed pass package", () => {
     if (expected.relevantDates) expected.relevantDates = expected.relevantDates.map(({ startDate, endDate }) => ({ startDate: new Date(startDate).toISOString(), endDate: new Date(endDate).toISOString() }));
     expect(pass).toEqual({ ...expected, ...(expected.eventTicket ? { eventTicket: { ...expected.eventTicket, additionalInfoFields: [] } } : {}) });
     expect(manifest).toHaveProperty("icon@3x.png");
-    // An event ticket on a dark color gets a picture behind the card instead of the neutral logo.
+    // An event ticket on a dark color gets a picture behind the card and the ticket emblem as its logo.
     const picture = result.value.passes[0].type === "eventTicket" && artworkSpec(result.value.passes[0].style) !== undefined;
     for (const file of ["background.png", "background@2x.png", "background@3x.png"]) expect(manifest.hasOwnProperty(file)).toBe(picture);
-    for (const file of ["logo.png", "logo@2x.png", "logo@3x.png"]) expect(manifest.hasOwnProperty(file)).toBe(!picture);
+    // Every pass has a logo: the neutral one, or the ticket emblem on a picture.
+    for (const file of ["logo.png", "logo@2x.png", "logo@3x.png"]) expect(manifest).toHaveProperty(file);
+    if (picture) expect(readFileSync(path.join(target, "logo@2x.png")).equals(readFileSync("pass-models/default.pass/logo@2x.png"))).toBe(false);
     execFileSync("openssl", ["cms", "-verify", "-binary", "-inform", "DER", "-in", path.join(target, "signature"), "-content", path.join(target, "manifest.json"), "-CAfile", path.join(dir, "ca.pem"), "-purpose", "any", "-out", path.join(target, "verified.json")], { stdio: "pipe" });
     // The test checks our synthetic CA separately; it is never an Apple certificate.
     execFileSync("openssl", ["verify", "-CAfile", path.join(dir, "ca.pem"), path.join(dir, "signer.pem")], { stdio: "pipe" });
