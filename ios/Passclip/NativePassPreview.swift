@@ -38,7 +38,9 @@ struct NativePassPreview: View {
                 row(layout.headerFields)
                 row(layout.primaryFields, primary: true)
                 row(layout.secondaryFields)
-                row(layout.auxiliaryFields)
+                row(layout.auxiliaryFields.filter { ($0.row ?? 0) == 0 })
+                // An event ticket's second row of auxiliary fields, as Wallet shows it.
+                if layout.auxiliaryFields.contains(where: { $0.row == 1 }) { row(layout.auxiliaryFields.filter { $0.row == 1 }) }
                 // As in Wallet, the barcode sits at the bottom of the card and the picture fills the space above it.
                 if picture != nil { Spacer(minLength: 12) }
                 if let barcode = pass["barcode"], let message = barcode["message"]?.string {

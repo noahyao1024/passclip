@@ -1,6 +1,6 @@
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
-import { artworkCss, artworkFiles, artworkPreview, artworkSpec, renderArtwork, renderStrip, stripFiles, ticketLogoFiles } from "./artwork";
+import { artworkCss, artworkFiles, artworkPreview, artworkSpec, renderArtwork, ticketLogoFiles } from "./artwork";
 import { contrastRatio, MIN_CONTRAST, normalizeColors, type ResolvedStyle } from "./colors";
 
 const hex = (r: number, g: number, b: number) => `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
@@ -78,31 +78,5 @@ describe("event ticket artwork", () => {
       expect(at(3, 15)[3]).toBe(0); // the notch on the left edge
       expect(at(33, 15)[3]).toBe(0); // the notch on the right edge
     }
-  });
-
-  it("keeps the text readable on every pixel of the banner too", () => {
-    for (let index = 0; index < 40; index++) {
-      const style = designed(`Banner ${index}\nShow ${index * 5}`);
-      const pixels = renderStrip(artworkSpec(style)!, 94, 25);
-      let worst = Infinity;
-      for (let pixel = 0; pixel < 94 * 25; pixel++) {
-        const color = hex(pixels[pixel * 3], pixels[pixel * 3 + 1], pixels[pixel * 3 + 2]);
-        worst = Math.min(worst, contrastRatio(style.foregroundColor, color), contrastRatio(style.labelColor, color));
-      }
-      expect(worst, style.backgroundColor).toBeGreaterThanOrEqual(MIN_CONTRAST);
-    }
-  }, 30_000);
-
-  it("makes Wallet's three banner sizes (375 × 98 points) and nothing for light passes", () => {
-    const files = stripFiles(designed("SISTIC\nCross Talk Show"))!;
-    expect(Object.keys(files)).toEqual(["strip.png", "strip@2x.png", "strip@3x.png"]);
-    for (const [scale, name] of [[1, "strip.png"], [2, "strip@2x.png"], [3, "strip@3x.png"]] as const) {
-      const image = PNG.sync.read(files[name]);
-      expect([image.width, image.height]).toEqual([375 * scale, 98 * scale]);
-      expect(files[name].length).toBeLessThan(300 * 1024);
-    }
-    expect(stripFiles({ backgroundColor: "#FFFFFF", foregroundColor: "#000000", labelColor: "#444444" })).toBeUndefined();
-    const spec = artworkSpec(designed("A\nB"))!;
-    expect(renderStrip(spec, 75, 20)).toEqual(renderStrip(spec, 75, 20));
   });
 });

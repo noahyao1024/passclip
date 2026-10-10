@@ -47,7 +47,8 @@ describe("signed pass package", () => {
     expect(manifest).toHaveProperty("icon@3x.png");
     // An event ticket on a dark color gets a picture behind the card and the ticket emblem as its logo.
     const picture = result.value.passes[0].type === "eventTicket" && artworkSpec(result.value.passes[0].style) !== undefined;
-    for (const file of ["background.png", "background@2x.png", "background@3x.png", "strip.png", "strip@2x.png", "strip@3x.png"]) expect(manifest.hasOwnProperty(file)).toBe(picture);
+    for (const file of ["background.png", "background@2x.png", "background@3x.png"]) expect(manifest.hasOwnProperty(file)).toBe(picture);
+    expect(manifest).not.toHaveProperty("strip.png");
     // Every pass has a logo: the neutral one, or the ticket emblem on a picture.
     for (const file of ["logo.png", "logo@2x.png", "logo@3x.png"]) expect(manifest).toHaveProperty(file);
     if (picture) expect(readFileSync(path.join(target, "logo@2x.png")).equals(readFileSync("pass-models/default.pass/logo@2x.png"))).toBe(false);

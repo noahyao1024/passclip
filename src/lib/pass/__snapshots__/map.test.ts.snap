@@ -102,6 +102,31 @@ exports[`mapToPassJson > maps event-tickets with the exact preview fields 1`] = 
         "label": "Entrance",
         "value": "East door",
       },
+      {
+        "key": "booking",
+        "label": "Booking",
+        "row": 1,
+        "value": "BL-48213",
+      },
+      {
+        "key": "name",
+        "label": "Name",
+        "row": 1,
+        "value": "Aiko Tanaka",
+      },
+      {
+        "key": "ticket",
+        "label": "Ticket",
+        "row": 1,
+        "value": "BL48213-01",
+      },
+      {
+        "currencyCode": "JPY",
+        "key": "price_front",
+        "label": "Price",
+        "row": 1,
+        "value": 8800,
+      },
     ],
     "backFields": [
       {
@@ -114,27 +139,6 @@ exports[`mapToPassJson > maps event-tickets with the exact preview fields 1`] = 
         "key": "att_1",
         "label": "Venue map",
         "value": "https://bluelantern.example/map.pdf",
-      },
-      {
-        "key": "holder_back",
-        "label": "Name",
-        "value": "Aiko Tanaka",
-      },
-      {
-        "key": "confirmation",
-        "label": "Confirmation",
-        "value": "BL-48213",
-      },
-      {
-        "key": "ticket_number",
-        "label": "Ticket number",
-        "value": "BL48213-01",
-      },
-      {
-        "currencyCode": "JPY",
-        "key": "price",
-        "label": "Price",
-        "value": 8800,
       },
       {
         "key": "venue_back",

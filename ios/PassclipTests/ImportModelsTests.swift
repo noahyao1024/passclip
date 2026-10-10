@@ -219,12 +219,21 @@ final class DocumentReadingTests: XCTestCase {
 }
 
 final class TitleShorteningTests: XCTestCase {
-    func testLongEventTitleDropsCityThenCutsAtAWord() {
-        let title = "2026 Deyunshe 30th Anniversary - Yue Yunpeng & Sun Yue Cross Talk Show in Singapore"
-        let short = ImportJSONBuilder.shortTitle(title, city: "Singapore")
-        XCTAssertLessThanOrEqual(short.count, ImportJSONBuilder.titleLimit + 1)
-        XCTAssertTrue(short.hasSuffix("…"))
-        XCTAssertEqual(ImportJSONBuilder.shortTitle("Short Show", city: "Singapore"), "Short Show")
+    func testSplitsSeriesAndShowWithoutDotsAndDropsThePlace() {
+        let split = ImportJSONBuilder.splitTitle("2026 Deyunshe 30th Anniversary - Yue Yunpeng & Sun Yue Cross Talk Show in Singapore", city: nil)
+        XCTAssertEqual(split.title, "Yue Yunpeng & Sun Yue Cross Talk Show")
+        XCTAssertEqual(split.subtitle, "2026 Deyunshe 30th Anniversary")
+    }
+
+    func testEndsBeforeFeaturingOrAtAWholeWordAndNeverAddsDots() {
+        let featuring = ImportJSONBuilder.splitTitle("Deyun Club’s 30th Anniversary Cross Talk Show featuring Yue Yunpeng and Sun Yue - Singapore", city: "Singapore")
+        XCTAssertEqual(featuring.title, "Deyun Club’s 30th Anniversary Cross Talk Show")
+        XCTAssertNil(featuring.subtitle)
+        let plain = ImportJSONBuilder.splitTitle("An Extraordinarily Long Evening Of Music Played Under The Stars By Many Orchestras", city: nil)
+        XCTAssertLessThanOrEqual(plain.title.count, ImportJSONBuilder.titleLimit)
+        XCTAssertFalse(plain.title.contains("…"))
+        XCTAssertFalse(plain.title.hasSuffix(" The") || plain.title.hasSuffix(" By"))
+        XCTAssertEqual(ImportJSONBuilder.splitTitle("Short Show", city: "Singapore").title, "Short Show")
     }
 }
 

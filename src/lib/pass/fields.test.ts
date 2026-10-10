@@ -30,7 +30,9 @@ describe("layouts for all five pass styles", () => {
         expect(layout.headerFields.length).toBeLessThanOrEqual(2);
         expect(layout.primaryFields.length).toBeLessThanOrEqual(pass.type === "boardingPass" ? 2 : 1);
         expect(layout.secondaryFields.length).toBeLessThanOrEqual(3);
-        expect(layout.auxiliaryFields.length).toBeLessThanOrEqual(4);
+        // Event tickets may use a second row of four (fields marked row 1); other passes have one row.
+        expect(layout.auxiliaryFields.length).toBeLessThanOrEqual(pass.type === "eventTicket" ? 8 : 4);
+        expect(layout.auxiliaryFields.map((field) => field.row ?? 0)).toEqual(layout.auxiliaryFields.map((_, index) => (index >= 4 ? 1 : 0)));
         const keys = allFields(layout).map((field) => field.key);
         expect(new Set(keys).size).toBe(keys.length);
         expect(layout.primaryFields.length).toBeGreaterThan(0);
@@ -40,16 +42,14 @@ describe("layouts for all five pass styles", () => {
 });
 
 describe("front fields and overflow", () => {
-  it("keeps all event seat fields and puts every extra field on the back when the row is full", () => {
+  it("puts an event ticket's extra fields in a second row, and only what doesn't fit on the back", () => {
     const pass: Pass = {
       type: "eventTicket", title: "Jazz Night", seat: { section: "B", row: "F", number: "12", entrance: "East" },
-      extraFields: [{ label: "Seat", value: "Standing area" }, { label: "Seat", value: "Balcony" }],
+      extraFields: [{ label: "Seat", value: "Standing area" }, { label: "Seat", value: "Balcony" }, { label: "Gate", value: "3" }, { label: "Bag", value: "Small" }, { label: "Doors", value: "6:30 PM" }],
     };
     const layout = layoutPass(pass);
-    expect(layout.auxiliaryFields.map((field) => field.key)).toEqual(["section", "row", "seat", "entrance"]);
-    expect(layout.backFields.filter((field) => field.key.startsWith("x_"))).toEqual([
-      { key: "x_1", label: "Seat", value: "Standing area" }, { key: "x_2", label: "Seat", value: "Balcony" },
-    ]);
+    expect(layout.auxiliaryFields.map((field) => [field.key, field.row])).toEqual([["section", undefined], ["row", undefined], ["seat", undefined], ["entrance", undefined], ["x_1", 1], ["x_2", 1], ["x_3", 1], ["x_4", 1]]);
+    expect(layout.backFields.filter((field) => field.key.startsWith("x_"))).toEqual([{ key: "x_5", label: "Doors", value: "6:30 PM" }]);
     expect(layout.warnings).toEqual([]);
   });
 
@@ -62,11 +62,19 @@ describe("front fields and overflow", () => {
     expect(layout.backFields.map((field) => field.key)).not.toContain("seat_description");
   });
 
-  it("keeps the category and booking number on the back when the seat row is already full", () => {
-    const layout = layoutPass({ type: "eventTicket", title: "Show", confirmationCode: "ABC123", seat: { section: "B", row: "F", number: "12", entrance: "East door", description: "Balcony" } });
-    expect(layout.auxiliaryFields.map((field) => field.key)).toEqual(["section", "row", "seat", "entrance"]);
-    expect(layout.backFields).toContainEqual({ key: "confirmation", label: "Confirmation", value: "ABC123" });
-    expect(layout.backFields).toContainEqual({ key: "seat_description", label: "Seating", value: "Balcony" });
+  it("moves the category, booking number and name to the second row instead of the back", () => {
+    const layout = layoutPass({ type: "eventTicket", title: "Show", confirmationCode: "ABC123", holderName: "DAMAI", seat: { section: "B", row: "F", number: "12", entrance: "East door", description: "Balcony" } });
+    expect(layout.auxiliaryFields.map((field) => [field.key, field.value, field.row])).toEqual([
+      ["section", "B", undefined], ["row", "F", undefined], ["seat", "12", undefined], ["entrance", "East door", undefined],
+      ["category", "Balcony", 1], ["booking", "ABC123", 1], ["name", "DAMAI", 1],
+    ]);
+    for (const key of ["confirmation", "seat_description", "holder_back"]) expect(layout.backFields.map((field) => field.key)).not.toContain(key);
+  });
+
+  it("keeps one row of auxiliary fields on other passes", () => {
+    const layout = layoutPass({ type: "generic", title: "Gym", membership: { tier: "Gold" }, extraFields: Array.from({ length: 6 }, (_, index) => ({ label: `F${index}`, value: "x" })) });
+    expect(layout.auxiliaryFields).toHaveLength(4);
+    expect(layout.auxiliaryFields.every((field) => field.row === undefined)).toBe(true);
   });
 
   it("fills generic auxiliary fields in order and sends the remainder to the back", () => {
@@ -206,9 +214,10 @@ describe("estimated display limits", () => {
   });
 
   it("doesn't apply front limits to notes, ISO dates or overflow on the back", () => {
-    const layout = layoutPass({ type: "eventTicket", title: "Jazz", start: "2026-12-03T10:25:00+09:00", notes: "N".repeat(1000), seat: { section: "B", row: "F", number: "12", entrance: "East" }, extraFields: [{ label: "Details", value: "D".repeat(300) }] });
+    const short = Array.from({ length: 4 }, (_, index) => ({ label: `F${index}`, value: "x" }));
+    const layout = layoutPass({ type: "eventTicket", title: "Jazz", start: "2026-12-03T10:25:00+09:00", notes: "N".repeat(1000), seat: { section: "B", row: "F", number: "12", entrance: "East" }, extraFields: [...short, { label: "Details", value: "D".repeat(300) }] });
     expect(layout.warnings).toEqual([]);
-    expect(layout.backFields.find((field) => field.key === "x_1")?.value).toBe("D".repeat(300));
+    expect(layout.backFields.find((field) => field.key === "x_5")?.value).toBe("D".repeat(300));
   });
 
   it("puts the date and time in an event ticket's header and the venue in a row of its own", () => {
