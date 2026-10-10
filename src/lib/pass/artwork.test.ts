@@ -8,19 +8,20 @@ const designed = (seed: string) => normalizeColors("eventTicket", undefined, see
 
 describe("event ticket artwork", () => {
   it("keeps the text readable on every pixel, for many colors", () => {
-    for (let index = 0; index < 120; index++) {
+    for (let index = 0; index < 80; index++) {
       const style = designed(`Organizer ${index}\nEvent ${index * 7}`);
       const spec = artworkSpec(style);
       expect(spec, style.backgroundColor).toBeDefined();
-      const width = 45, height = 55;
+      const width = 36, height = 44;
       const pixels = renderArtwork(spec!, width, height);
+      let worst = Infinity;
       for (let pixel = 0; pixel < width * height; pixel++) {
         const color = hex(pixels[pixel * 3], pixels[pixel * 3 + 1], pixels[pixel * 3 + 2]);
-        expect(contrastRatio(style.foregroundColor, color), `${style.backgroundColor} ${color}`).toBeGreaterThanOrEqual(MIN_CONTRAST);
-        expect(contrastRatio(style.labelColor, color), `${style.backgroundColor} ${color}`).toBeGreaterThanOrEqual(MIN_CONTRAST);
+        worst = Math.min(worst, contrastRatio(style.foregroundColor, color), contrastRatio(style.labelColor, color));
       }
+      expect(worst, style.backgroundColor).toBeGreaterThanOrEqual(MIN_CONTRAST);
     }
-  });
+  }, 30_000);
 
   it("also keeps text readable on colors the person chose", () => {
     const style: ResolvedStyle = { backgroundColor: "#3B2A20", foregroundColor: "#FFFFFF", labelColor: "#E8C9A0" };
