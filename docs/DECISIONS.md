@@ -137,3 +137,11 @@ Apple's Add to Apple Wallet guidelines (checked 2026-10-03): use only Apple's ba
 - Not tested here: this Mac reports the model as unavailable (`deviceNotEligible`), so the generation itself has only been checked by building against the iOS 27 SDK and by running everything around it, with a debug-only stand-in (`PASSCLIP_FAKE_AI=1`). Quality on real emails needs a check on an iPhone.
 - Pass front: event tickets now show the seat category (like "CAT 2") and the booking number on the front when the lower row has room, and not again on the back. A real ticket without a seat number was nearly empty in Wallet.
 - Correction to an earlier note: the preview's date format isn't a bug. It follows the device's region settings, like Wallet does; the Simulator on this Mac uses Canadian settings, which write `2026-10-10`.
+
+## D23: PDFs and screenshots in the iPhone app
+
+- The Share sheet now accepts PDFs (including "Print → Share" from a preview), screenshots, photos and any file, and the in-app picker shows every file. The kind comes from the file's bytes (`%PDF-`, image data, UTF-8 text), never from its name, so a PDF saved without ".pdf" works. The first picker only allowed .json and .txt, which greyed out real tickets.
+- A PDF's text goes through the same "Make pass" step as a pasted email. If the PDF has almost no text (a scan), the pages are read with Apple's text recognition. Everything happens on the iPhone.
+- Barcodes in a PDF or image are found with Vision and offered as "Use this code". They are never added automatically (CLAUDE.md rule 3).
+- Not handled: .eml and .html email files. Share the email's text instead.
+- Not tested here: Vision doesn't run in the Simulator, so scanned-PDF reading and barcode finding need a real iPhone. PDF text reading is unit-tested.

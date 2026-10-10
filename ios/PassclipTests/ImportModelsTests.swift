@@ -186,3 +186,29 @@ final class EmailReadingTests: XCTestCase {
     }
     #endif
 }
+
+final class DocumentReadingTests: XCTestCase {
+    private func samplePDF() -> Data {
+        UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792)).pdfData { context in
+            context.beginPage()
+            let text = "SISTIC E-Ticket\nEvent: Test Concert\nVenue: Indoor Stadium\nDate: 12 Nov 2026 8:00 PM\nBooking reference 4031984497 for Alex Tan, Category 1"
+            (text as NSString).draw(in: CGRect(x: 40, y: 40, width: 500, height: 300), withAttributes: [.font: UIFont.systemFont(ofSize: 16)])
+        }
+    }
+
+    func testReadsPDFTextFromContentNotFileName() async throws {
+        // The reader only sees bytes, so a file saved without ".pdf" works the same.
+        let data = samplePDF()
+        XCTAssertTrue(DocumentReader.isPDF(data))
+        let document = try await DocumentReader.read(data)
+        XCTAssertTrue(document.text.contains("Test Concert"))
+        XCTAssertTrue(document.text.contains("4031984497"))
+    }
+
+    func testPlainTextPassesThroughAndJunkIsRejected() async throws {
+        let text = try await DocumentReader.read(Data("Order 123 for Show".utf8))
+        XCTAssertEqual(text.text, "Order 123 for Show")
+        do { _ = try await DocumentReader.read(Data([0, 1, 2, 3, 255, 254])); XCTFail("Expected unsupported") }
+        catch { XCTAssertTrue(error is DocumentError) }
+    }
+}
