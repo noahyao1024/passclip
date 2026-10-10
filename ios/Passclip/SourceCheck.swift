@@ -154,7 +154,7 @@ enum SourceCheck {
             pass.holderName = name(pass.holderName, "name", &warnings)
             pass.venueName = name(pass.venueName, "venue", &warnings)
             pass.venueAddress = name(pass.venueAddress, "address", &warnings)
-            pass.confirmationCode = code(pass.confirmationCode, "booking number", &warnings)
+            pass.confirmationCode = code(pass.confirmationCode, "booking number", &warnings) ?? labeledBookingNumber()
             pass.seatSection = code(pass.seatSection, "section", &warnings)
             pass.seatRow = code(pass.seatRow, "row", &warnings)
             pass.seatNumber = code(pass.seatNumber, "seat", &warnings)
@@ -165,6 +165,25 @@ enum SourceCheck {
             pass.gate = code(pass.gate, "gate", &warnings)
             pass.notes = SourceCheck.usefulNotes(pass.notes)
             return pass
+        }
+
+        /// A booking number the model missed, read from a labeled line like "Transaction No. 20261005-001796" or a
+        /// label on one line and the number on the next. Taken straight from the text, so nothing is guessed.
+        func labeledBookingNumber() -> String? {
+            let label = #"^(transaction|booking|order|confirmation|reservation|reference)\s*(no\.?|number|#|id|code|reference|ref\.?)?\s*[:：#]?\s*(.*)$"#
+            guard let regex = try? NSRegularExpression(pattern: label, options: [.caseInsensitive]) else { return nil }
+            let looksLikeCode = { (text: String) -> Bool in
+                text.count >= 4 && text.count <= 30 && !text.contains(" ") && text.contains(where: \.isNumber)
+            }
+            for (index, line) in lines.enumerated() {
+                let text = line.text
+                guard let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+                      let rest = Range(match.range(at: 3), in: text) else { continue }
+                let sameLine = String(text[rest]).trimmingCharacters(in: .whitespaces)
+                if looksLikeCode(sameLine) { return sameLine }
+                if sameLine.isEmpty, index + 1 < lines.count, looksLikeCode(lines[index + 1].text) { return lines[index + 1].text }
+            }
+            return nil
         }
 
         /// A short title is only used when its words come from the full title.

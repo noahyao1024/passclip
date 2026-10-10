@@ -18,6 +18,9 @@ struct ContentView: View {
     @State private var suggestedCodes: [FoundCode]
     @State private var source: DocumentSource
     @State private var linkChoices: [LinkChoice]
+    /// Event pictures the person chose, by pass number, and one a ticket page offered.
+    @State private var pictures: [Int: UIImage] = [:]
+    @State private var suggestedPicture: UIImage?
     @State private var showingSettings = false
     @State private var walletPass: PKPass?
     @State private var showingWallet = false
@@ -34,6 +37,7 @@ struct ContentView: View {
         // The first link is the original; the others start switched off.
         _linkChoices = State(initialValue: incoming.links.enumerated().map { LinkChoice(link: $0.element, on: $0.offset == 0) })
         _error = State(initialValue: incoming.problem)
+        _suggestedPicture = State(initialValue: incoming.picture.flatMap(UIImage.init(data:)))
         self.onClose = onClose
         self.startOnAppear = startOnAppear
     }
@@ -82,7 +86,7 @@ struct ContentView: View {
             .sheet(isPresented: $showingWallet) { if let walletPass { WalletSheet(pass: walletPass) { showingWallet = false; self.walletPass = nil } } }
             .task { if startOnAppear && hasText { await makePass() } }
             .onChange(of: scenePhase) { _, phase in if phase == .active { reader = EmailReader.status } }
-            .onChange(of: text) { _, _ in result = nil; notice = "" }
+            .onChange(of: text) { _, _ in result = nil; notice = ""; pictures = [:] }
             .onChange(of: server) { _, _ in result = nil }
             .onChange(of: timeZone) { _, _ in if result != nil { Task { await preview() } } }
         }
@@ -231,7 +235,10 @@ struct ContentView: View {
         ForEach(result.value.passes.indices, id: \.self) { index in
             VStack(alignment: .leading, spacing: 12) {
                 if result.value.passes.count > 1 { Text("Pass \(index + 1)").font(.footnote.weight(.semibold)).foregroundStyle(Brand.muted) }
-                NativePassPreview(pass: result.value.passes[index], layout: result.layouts[index], artwork: result.artwork(at: index))
+                NativePassPreview(pass: result.value.passes[index], layout: result.layouts[index], artwork: result.artwork(at: index), picture: pictures[index])
+                if ["eventTicket", "generic"].contains(result.value.passes[index]["type"]?.string ?? "") {
+                    EventPictureCard(picture: Binding(get: { pictures[index] }, set: { pictures[index] = $0 }))
+                }
                 CodeFromImage(current: result.value.passes[index]["barcode"], suggested: suggestedCodes) { code in
                     self.result?.value.setBarcode(code, at: index)
                     notice = "Added the \(BarcodeReader.names[code.format] ?? "code") to pass \(index + 1)."
@@ -344,10 +351,11 @@ struct ContentView: View {
 
     private func apply(_ document: ReadDocument) {
         text = document.text; suggestedCodes = document.codes; source = document.source
+        suggestedPicture = document.picture.flatMap(UIImage.init(data:))
         linkChoices = document.links.enumerated().map { LinkChoice(link: $0.element, on: $0.offset == 0) }
     }
 
-    private func resetSource() { source = DocumentSource(); suggestedCodes = []; linkChoices = [] }
+    private func resetSource() { source = DocumentSource(); suggestedCodes = []; linkChoices = []; suggestedPicture = nil }
 
     @MainActor private func preview() async {
         busy = true; busyLabel = "Checking your pass…"; error = ""; defer { busy = false; busyLabel = "" }
@@ -364,6 +372,11 @@ struct ContentView: View {
                     result?.value.setBarcode(code, at: 0)
                     notice = "Added the \(BarcodeReader.names[code.format] ?? "code") found in your document. Check that it matches your ticket."
                 }
+                // The ticket page's own picture goes on the first event pass; the person can change or remove it.
+                if pictures.isEmpty, let picture = suggestedPicture, response.value.passes.first?["type"]?.string == "eventTicket" {
+                    pictures[0] = picture
+                    notice = [notice, "Added the picture from the ticket page."].filter { !$0.isEmpty }.joined(separator: " ")
+                }
             }
         } catch { self.error = error.localizedDescription }
     }
@@ -373,9 +386,48 @@ struct ContentView: View {
         busy = true; error = ""; defer { busy = false }
         do {
             let payload = try result.value.singlePassText(at: index)
-            let data = try await PassclipService(server: server).signedPass(text: payload, timeZone: timeZone)
+            var thumbnail: [String: String]?
+            if let picture = pictures[index] {
+                guard let files = PosterImage.thumbnailFiles(from: picture) else { throw ServiceError.rejected("This picture couldn't be used. Choose another one, or remove it.") }
+                thumbnail = files
+            }
+            let data = try await PassclipService(server: server).signedPass(text: payload, timeZone: timeZone, thumbnail: thumbnail)
             walletPass = try PKPass(data: data); showingWallet = true
         } catch { self.error = error.localizedDescription }
+    }
+}
+
+/// A poster or photo for the pass: Wallet shows it next to the title.
+private struct EventPictureCard: View {
+    @Binding var picture: UIImage?
+    @State private var item: PhotosPickerItem?
+    @State private var problem = ""
+
+    var body: some View {
+        Card {
+            Label(picture == nil ? "Add an event picture" : "Event picture", systemImage: "photo").font(.subheadline.weight(.semibold)).foregroundStyle(Brand.ink)
+            Text("A poster or photo shows next to the title in Wallet. It's added to the pass and not kept anywhere else.").font(.caption).foregroundStyle(Brand.muted)
+            HStack(spacing: 8) {
+                PhotosPicker(selection: $item, matching: .images) {
+                    Label(picture == nil ? "Choose a picture" : "Change picture", systemImage: "photo.on.rectangle")
+                }
+                .buttonStyle(SecondaryButtonStyle())
+                if picture != nil { Button("Remove", role: .destructive) { picture = nil }.font(.subheadline) }
+            }
+            if !problem.isEmpty { Text(problem).font(.caption).foregroundStyle(Brand.error) }
+        }
+        .onChange(of: item) { _, newItem in if let newItem { Task { await load(newItem) } } }
+    }
+
+    @MainActor private func load(_ item: PhotosPickerItem) async {
+        problem = ""
+        defer { self.item = nil }
+        guard let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data),
+              PosterImage.thumbnailFiles(from: image) != nil else {
+            problem = "This picture couldn't be used. Choose another one."
+            return
+        }
+        picture = image
     }
 }
 

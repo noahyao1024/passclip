@@ -57,4 +57,18 @@ describe("signed pass package", () => {
     execFileSync("openssl", ["verify", "-CAfile", path.join(dir, "ca.pem"), path.join(dir, "signer.pem")], { stdio: "pipe" });
     expect(readFileSync(path.join(target, "verified.json"))).toEqual(readFileSync(path.join(target, "manifest.json")));
   });
+
+  it("puts the person's event picture in an event ticket", async () => {
+    const { encodePng } = await import("./png");
+    const result = processImport(readFileSync("examples/event-tickets.json", "utf8"), { fallbackTimeZone: "Asia/Tokyo" });
+    if (!result.ok) throw new Error("Invalid fixture");
+    const png = (width: number, height: number) => encodePng(width, height, new Uint8Array(width * height * 3).fill(120));
+    const thumbnail = { "thumbnail.png": png(60, 90), "thumbnail@2x.png": png(120, 180), "thumbnail@3x.png": png(180, 270) };
+    const buffer = await buildPass(result.value.passes[0], signing, { thumbnail });
+    const target = path.join(dir, "with-picture"); writeFileSync(target + ".zip", buffer);
+    execFileSync("python3", ["-c", "import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])", target + ".zip", target]);
+    const manifest = JSON.parse(readFileSync(path.join(target, "manifest.json"), "utf8"));
+    for (const name of Object.keys(thumbnail)) expect(manifest).toHaveProperty(name);
+    expect(readFileSync(path.join(target, "thumbnail@3x.png")).equals(thumbnail["thumbnail@3x.png"])).toBe(true);
+  });
 });
