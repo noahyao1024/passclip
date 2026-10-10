@@ -1,6 +1,6 @@
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
-import { artworkCss, artworkFiles, artworkPreview, artworkSpec, renderArtwork } from "./artwork";
+import { artworkCss, artworkFiles, artworkPreview, artworkSpec, renderArtwork, ticketLogoFiles } from "./artwork";
 import { contrastRatio, MIN_CONTRAST, normalizeColors, type ResolvedStyle } from "./colors";
 
 const hex = (r: number, g: number, b: number) => `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
@@ -52,17 +52,31 @@ describe("event ticket artwork", () => {
     expect(Object.keys(files)).toEqual(["background.png", "background@2x.png", "background@3x.png"]);
     for (const [scale, name] of [[1, "background.png"], [2, "background@2x.png"], [3, "background@3x.png"]] as const) {
       const image = PNG.sync.read(files[name]);
-      expect([image.width, image.height]).toEqual([180 * scale, 220 * scale]);
-      expect(files[name].length).toBeLessThan(150 * 1024);
+      expect([image.width, image.height]).toEqual([343 * scale, 503 * scale]);
+      expect(files[name].length).toBeLessThan(400 * 1024);
     }
   });
 
   it("makes the preview picture and the website's CSS from the same plan", () => {
     const style = designed("SISTIC\nCross Talk Show");
     const preview = PNG.sync.read(Buffer.from(artworkPreview(style)!, "base64"));
-    expect([preview.width, preview.height]).toEqual([180, 220]);
+    expect([preview.width, preview.height]).toEqual([172, 252]);
     const css = artworkCss(style)!;
     expect(css).toContain("radial-gradient(");
     expect(css).toMatch(/linear-gradient\(to bottom, rgba\(\d+,\d+,\d+,1\), rgba\(\d+,\d+,\d+,1\)\)$/);
+  });
+
+  it("draws a ticket emblem as the logo, in the text color, with see-through notches", () => {
+    const files = ticketLogoFiles(designed("SISTIC\nCross Talk Show"));
+    expect(Object.keys(files)).toEqual(["logo.png", "logo@2x.png", "logo@3x.png"]);
+    for (const [scale, name] of [[1, "logo.png"], [2, "logo@2x.png"], [3, "logo@3x.png"]] as const) {
+      const image = PNG.sync.read(files[name]);
+      expect([image.width, image.height]).toEqual([36 * scale, 30 * scale]);
+      const at = (x: number, y: number) => image.data.subarray(((Math.floor(y * scale)) * image.width + Math.floor(x * scale)) * 4, ((Math.floor(y * scale)) * image.width + Math.floor(x * scale)) * 4 + 4);
+      expect([...at(14, 15)]).toEqual([255, 255, 255, 255]); // the ticket, in white text color
+      expect(at(1, 1)[3]).toBe(0); // outside
+      expect(at(3, 15)[3]).toBe(0); // the notch on the left edge
+      expect(at(33, 15)[3]).toBe(0); // the notch on the right edge
+    }
   });
 });

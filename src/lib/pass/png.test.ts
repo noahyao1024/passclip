@@ -19,4 +19,10 @@ describe("PNG encoder", () => {
     expect(encodePng(width, height, gradient).length).toBeLessThan(width * height * 3 / 20);
     expect(() => encodePng(10, 10, new Uint8Array(5))).toThrow("doesn't match");
   });
+
+  it("writes RGBA images with their transparency", () => {
+    const rgba = new Uint8Array([10, 20, 30, 0, 40, 50, 60, 255, 70, 80, 90, 128, 100, 110, 120, 7]);
+    const image = PNG.sync.read(encodePng(2, 2, rgba, 4));
+    expect([...image.data]).toEqual([...rgba]);
+  });
 });

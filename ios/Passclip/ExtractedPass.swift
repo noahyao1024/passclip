@@ -22,6 +22,8 @@ struct ExtractedPass: Equatable {
     var seatSection: String?
     var seatRow: String?
     var seatNumber: String?
+    /// Gate, door or entrance at the venue, like "East".
+    var seatEntrance: String?
     var transitMode: String?
     var carrier: String?
     var number: String?
@@ -112,6 +114,7 @@ enum ImportJSONBuilder {
         add(&seat, "section", clean(item.seatSection))
         add(&seat, "row", clean(item.seatRow))
         add(&seat, "number", clean(item.seatNumber))
+        add(&seat, "entrance", clean(item.seatEntrance))
         add(&seat, "description", clean(item.seatCategory))
         if !seat.isEmpty { fields.append(("seat", .object(seat))) }
 

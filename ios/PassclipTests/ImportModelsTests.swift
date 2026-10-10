@@ -417,3 +417,27 @@ final class ArtworkResponseTests: XCTestCase {
         XCTAssertNil(try JSONDecoder().decode(ImportResponse.self, from: Data(older.utf8)).artwork(at: 0))
     }
 }
+
+final class PrintedCodeTests: XCTestCase {
+    func testNumberCodesShowTheirNumberUnderTheBarsAndSquareCodesDoNot() throws {
+        var value = try JSONDecoder().decode(ImportedData.self, from: Data(#"{"passes":[{"type":"eventTicket","title":"Show"}]}"#.utf8))
+        value.setBarcode(FoundCode(format: "code128", message: "40319844972"), at: 0)
+        XCTAssertEqual(value.passes[0]["barcode"]?["altText"]?.string, "40319844972")
+        value.setBarcode(FoundCode(format: "pdf417", message: "LONG|PAYLOAD|12345"), at: 0)
+        XCTAssertNil(value.passes[0]["barcode"]?["altText"])
+        value.setBarcode(FoundCode(format: "code128", message: String(repeating: "9", count: 60)), at: 0)
+        XCTAssertNil(value.passes[0]["barcode"]?["altText"], "A very long number isn't printed")
+    }
+
+    func testEntranceReachesTheSeat() throws {
+        var item = ExtractedPass(type: "eventTicket", title: "Show")
+        item.seatSection = "A7"; item.seatEntrance = "East"
+        let json = try XCTUnwrap(ImportJSONBuilder.json(from: [item]))
+        let seat = try XCTUnwrap(((try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])?["passes"] as? [[String: Any]])?.first?["seat"] as? [String: String])
+        XCTAssertEqual(seat, ["section": "A7", "entrance": "East"])
+        let outcome = SourceCheck.apply(to: [item], source: "Section A7  Door / Entrance East")
+        XCTAssertEqual(outcome.passes[0].seatEntrance, "East")
+        item.seatEntrance = "Gate 9"
+        XCTAssertNil(SourceCheck.apply(to: [item], source: "Section A7  Door / Entrance East").passes[0].seatEntrance)
+    }
+}

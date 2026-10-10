@@ -121,6 +121,7 @@ enum SourceCheck {
             pass.seatSection = code(pass.seatSection, "section", &warnings)
             pass.seatRow = code(pass.seatRow, "row", &warnings)
             pass.seatNumber = code(pass.seatNumber, "seat", &warnings)
+            pass.seatEntrance = code(pass.seatEntrance, "entrance", &warnings)
             pass.number = code(pass.number, "number", &warnings)
             pass.fromCode = code(pass.fromCode, "departure code", &warnings)
             pass.toCode = code(pass.toCode, "arrival code", &warnings)

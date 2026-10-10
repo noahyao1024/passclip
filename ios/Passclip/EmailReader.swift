@@ -136,6 +136,8 @@ struct GeneratedPass {
     var seatSection: String?
     var seatRow: String?
     var seatNumber: String?
+    @Guide(description: "Gate, door or entrance for the venue, like East or Gate 3")
+    var seatEntrance: String?
     @Guide(description: "For boardingPass only", .anyOf(["air", "train", "bus", "boat", "other"]))
     var transitMode: String?
     var carrier: String?
@@ -154,7 +156,7 @@ struct GeneratedPass {
         ExtractedPass(
             type: type, title: title, shortTitle: shortTitle, organization: organization, confirmationCode: confirmationCode, holderName: holderName,
             start: start, end: end, timeZone: timeZone, venueName: venueName, venueCity: venueCity, venueAddress: venueAddress,
-            seatCategory: seatCategory, seatSection: seatSection, seatRow: seatRow, seatNumber: seatNumber,
+            seatCategory: seatCategory, seatSection: seatSection, seatRow: seatRow, seatNumber: seatNumber, seatEntrance: seatEntrance,
             transitMode: transitMode, carrier: carrier, number: number, fromCode: fromCode, fromCity: fromCity,
             toCode: toCode, toCity: toCity, gate: gate, notes: notes
         )
