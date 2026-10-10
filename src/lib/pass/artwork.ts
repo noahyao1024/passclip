@@ -7,11 +7,12 @@ import { seeded } from "./seed";
  * over it, so a soft, colorful picture fills the empty space below the fields. It is drawn from the
  * pass's own colors, with no outside images, and the same colors always give the same picture.
  *
- * Apple's docs (checked 2026-10-10, docs/DECISIONS.md D26): an event pass shows logo, strip,
- * background or thumbnail images; a strip can't be combined with a background; the background is
- * 180 × 220 points, cropped slightly and blurred, and wants @1x, @2x and @3x files.
+ * Apple's Human Interface Guidelines for Wallet (checked 2026-10-10, docs/DECISIONS.md D26): a
+ * non-poster event ticket's background is 343 × 503 points and is blurred behind the content; a thumbnail
+ * is 60 to 90 points wide and 90 high. Older docs gave 180 × 220 and said a strip can't be combined with a
+ * background. Files are wanted at @1x, @2x and @3x.
  */
-export const BACKGROUND_POINTS = { width: 180, height: 220 } as const;
+export const BACKGROUND_POINTS = { width: 343, height: 503 } as const;
 export const BACKGROUND_FILES = [
   { name: "background.png", scale: 1 },
   { name: "background@2x.png", scale: 2 },
@@ -62,11 +63,11 @@ export function artworkSpec(style: ResolvedStyle): ArtworkSpec | undefined {
   const palette = [accent(28, 0.85, 0.5), accent(-28, 0.8, 0.48), accent(54, 0.75, 0.5), accent(-52, 0.8, 0.5)];
 
   const random = seeded(style.backgroundColor);
-  const glows: Glow[] = Array.from({ length: 7 }, (_, index) => ({
+  const glows: Glow[] = Array.from({ length: 9 }, (_, index) => ({
     x: random(),
     // Skewed toward the bottom, where the card has no fields.
     y: 0.25 + random() ** 0.8 * 0.9,
-    radius: 0.3 + random() * 0.42,
+    radius: 0.2 + random() * 0.5,
     color: palette[index % palette.length],
     strength: 0.55 + random() * 0.45,
   }));
@@ -144,11 +145,12 @@ export function artworkFiles(style: ResolvedStyle): Record<string, Buffer> | und
   return files;
 }
 
-/** The 1x picture as base64, for the iPhone app's preview. */
+/** A half-size picture as base64, for the iPhone app's preview (it is blurred there anyway). */
 export function artworkPreview(style: ResolvedStyle): string | undefined {
   const spec = artworkSpec(style);
   if (!spec) return undefined;
-  return encodePng(BACKGROUND_POINTS.width, BACKGROUND_POINTS.height, renderArtwork(spec, BACKGROUND_POINTS.width, BACKGROUND_POINTS.height)).toString("base64");
+  const width = Math.round(BACKGROUND_POINTS.width / 2), height = Math.round(BACKGROUND_POINTS.height / 2);
+  return encodePng(width, height, renderArtwork(spec, width, height)).toString("base64");
 }
 
 /** The same plan as CSS gradients, for the website's preview, which runs in the browser. */

@@ -52,15 +52,15 @@ describe("event ticket artwork", () => {
     expect(Object.keys(files)).toEqual(["background.png", "background@2x.png", "background@3x.png"]);
     for (const [scale, name] of [[1, "background.png"], [2, "background@2x.png"], [3, "background@3x.png"]] as const) {
       const image = PNG.sync.read(files[name]);
-      expect([image.width, image.height]).toEqual([180 * scale, 220 * scale]);
-      expect(files[name].length).toBeLessThan(150 * 1024);
+      expect([image.width, image.height]).toEqual([343 * scale, 503 * scale]);
+      expect(files[name].length).toBeLessThan(400 * 1024);
     }
   });
 
   it("makes the preview picture and the website's CSS from the same plan", () => {
     const style = designed("SISTIC\nCross Talk Show");
     const preview = PNG.sync.read(Buffer.from(artworkPreview(style)!, "base64"));
-    expect([preview.width, preview.height]).toEqual([180, 220]);
+    expect([preview.width, preview.height]).toEqual([172, 252]);
     const css = artworkCss(style)!;
     expect(css).toContain("radial-gradient(");
     expect(css).toMatch(/linear-gradient\(to bottom, rgba\(\d+,\d+,\d+,1\), rgba\(\d+,\d+,\d+,1\)\)$/);
