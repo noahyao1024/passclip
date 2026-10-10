@@ -91,6 +91,12 @@ export default function PrivacyPage() {
         file never go to Passclip. If you switch it on, a link found in your
         document goes on the back of the pass.
       </p>
+      <p>
+        If you add an event picture, or the ticket page you opened has one,
+        the app shrinks it on your iPhone and sends it to the server with the
+        pass details only so it can be put inside your Wallet pass. The server
+        does not store it.
+      </p>
 
       <h2>Files you attach</h2>
       <p>

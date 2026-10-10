@@ -1,6 +1,7 @@
 import { MAX_INPUT_BYTES } from "../import/parse";
 import { processImport } from "../import/process";
 import type { ProcessResult } from "../import/process";
+import { MAX_THUMBNAIL_BYTES, readThumbnails, type ThumbnailFiles } from "../pass/thumbnail";
 
 export class RequestProblem extends Error {
   constructor(message: string, public status = 400) { super(message); }
@@ -45,10 +46,14 @@ export function requireSameSite(request: Request, message = "Open Passclip to se
   }
 }
 
-export async function readImportRequest(request: Request): Promise<{ result: ProcessResult; index: number }> {
+/** `allowPicture`: the pass route also takes the iPhone app's event picture (three small PNG files). */
+export async function readImportRequest(request: Request, { allowPicture = false } = {}): Promise<{ result: ProcessResult; index: number; thumbnail?: ThumbnailFiles }> {
   requireSameSite(request);
   if (!request.body) throw new RequestProblem("Send the JSON from your AI reply.");
-  const body = await readLimitedText(request, MAX_INPUT_BYTES, "This import is over 256 KB.");
+  // Base64 makes the three pictures about a third larger.
+  const limit = MAX_INPUT_BYTES + (allowPicture ? Math.ceil(MAX_THUMBNAIL_BYTES * 3 * 1.4) : 0);
+  const body = await readLimitedText(request, limit, "This import is over 256 KB.");
+  let thumbnail: ThumbnailFiles | undefined;
   const type = request.headers.get("content-type")?.split(";")[0].trim();
   let text: string, fallbackTimeZone = "UTC", index = 0;
   if (type === "application/x-www-form-urlencoded") {
@@ -63,10 +68,16 @@ export async function readImportRequest(request: Request): Promise<{ result: Pro
     text = payload.text;
     if ("fallbackTimeZone" in payload && typeof payload.fallbackTimeZone === "string") fallbackTimeZone = payload.fallbackTimeZone;
     if ("index" in payload) index = Number(payload.index);
+    if (allowPicture && "thumbnail" in payload && payload.thumbnail !== undefined && payload.thumbnail !== null) {
+      const read = readThumbnails(payload.thumbnail);
+      if ("problem" in read) throw new RequestProblem(read.problem);
+      thumbnail = read.files;
+    }
   } else throw new RequestProblem("Use JSON or a form to send this import.", 415);
   if (!Number.isInteger(index) || index < 0) throw new RequestProblem("Choose a valid pass number.");
+  if (new TextEncoder().encode(text).length > MAX_INPUT_BYTES) throw new RequestProblem("This import is over 256 KB.", 413);
   const result = processImport(text, { fallbackTimeZone });
-  return { result, index };
+  return { result, index, ...(thumbnail ? { thumbnail } : {}) };
 }
 
 // Rate limit for pass, calendar and import requests: 30 a minute per visitor (docs/SPEC.md §11).

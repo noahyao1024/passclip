@@ -95,4 +95,6 @@ struct ImportRequest: Encodable {
     let text: String
     let fallbackTimeZone: String
     var index: Int = 0
+    /// The event picture's PNG files, base64, for the pass route only.
+    var thumbnail: [String: String]? = nil
 }

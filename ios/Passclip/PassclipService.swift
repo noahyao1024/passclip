@@ -30,10 +30,11 @@ struct PassclipService {
         baseURL = url
         self.session = session ?? URLSession(configuration: .ephemeral, delegate: NoRedirects(), delegateQueue: nil)
     }
-    private func post(_ endpoint: String, text: String, timeZone: String) async throws -> Data {
+    private func post(_ endpoint: String, text: String, timeZone: String, thumbnail: [String: String]? = nil) async throws -> Data {
         guard text.utf8.count <= 256 * 1024 else { throw ServiceError.tooLarge }
-        let body = try JSONEncoder().encode(ImportRequest(text: text, fallbackTimeZone: timeZone))
-        guard body.count <= 256 * 1024 else { throw ServiceError.tooLarge }
+        let body = try JSONEncoder().encode(ImportRequest(text: text, fallbackTimeZone: timeZone, thumbnail: thumbnail))
+        // The picture (three small PNG files) may add up to about 1.2 MB.
+        guard body.count <= 256 * 1024 + (thumbnail == nil ? 0 : 1_290_240) else { throw ServiceError.tooLarge }
         var request = URLRequest(url: baseURL.appendingPathComponent("api").appendingPathComponent(endpoint))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -57,5 +58,5 @@ struct PassclipService {
         }
         catch { throw ServiceError.invalidResponse }
     }
-    func signedPass(text: String, timeZone: String) async throws -> Data { try await post("pass", text: text, timeZone: timeZone) }
+    func signedPass(text: String, timeZone: String, thumbnail: [String: String]? = nil) async throws -> Data { try await post("pass", text: text, timeZone: timeZone, thumbnail: thumbnail) }
 }

@@ -17,6 +17,8 @@ struct ReadDocument {
     var codes: [FoundCode] = []
     var links: [FoundLink] = []
     var source = DocumentSource()
+    /// A picture of the event, like the preview image a ticket page declares. Offered for the pass.
+    var picture: Data? = nil
 }
 
 /// What the screen starts with when something was shared to Passclip or opened in it.
@@ -25,10 +27,11 @@ struct Incoming {
     var codes: [FoundCode] = []
     var links: [FoundLink] = []
     var source = DocumentSource()
+    var picture: Data?
     var problem = ""
 
     init(text: String = "", problem: String = "") { self.text = text; self.problem = problem }
-    init(_ document: ReadDocument) { text = document.text; codes = document.codes; links = document.links; source = document.source }
+    init(_ document: ReadDocument) { text = document.text; codes = document.codes; links = document.links; source = document.source; picture = document.picture }
 }
 
 enum DocumentError: LocalizedError {

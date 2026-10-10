@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { readImportRequest, allowRequest } from "./import-request";
+import { encodePng } from "../pass/png";
 import { POST as passPost } from "../../app/api/pass/route";
 import { POST as importPost } from "../../app/api/import/route";
 const text = JSON.stringify({ schemaVersion: "1.0", passes: [{ type: "generic", title: "Test" }] });
@@ -82,5 +83,33 @@ describe("server request validation", () => {
     const now = Date.now() + 20 * 60000;
     for (let i = 0; i < 30; i++) expect(allowRequest(request(text, { "Content-Type": "application/json", "x-forwarded-for": `192.0.2.${i}` }), now, {})).toBe(true);
     expect(allowRequest(request(text, { "Content-Type": "application/json", "x-forwarded-for": "192.0.2.99" }), now, {})).toBe(false);
+  });
+
+  describe("event pictures", () => {
+    const png = (width: number, height: number) => encodePng(width, height, new Uint8Array(width * height * 3).fill(90)).toString("base64");
+    const thumbnail = { "thumbnail.png": png(60, 90), "thumbnail@2x.png": png(120, 180), "thumbnail@3x.png": png(180, 270) };
+    const body = (picture: unknown) => JSON.stringify({ text, thumbnail: picture });
+
+    it("takes the three picture files on the pass route", async () => {
+      const read = await readImportRequest(request(body(thumbnail)), { allowPicture: true });
+      expect(read.result.ok).toBe(true);
+      expect(Object.keys(read.thumbnail ?? {})).toEqual(["thumbnail.png", "thumbnail@2x.png", "thumbnail@3x.png"]);
+      expect(read.thumbnail?.["thumbnail@3x.png"].readUInt32BE(20)).toBe(270);
+    });
+
+    it("ignores pictures where they aren't used and refuses files that aren't what they claim", async () => {
+      expect((await readImportRequest(request(body(thumbnail)))).thumbnail).toBeUndefined();
+      const wrong = [
+        { ...thumbnail, "thumbnail@3x.png": png(180, 200) },
+        { ...thumbnail, "thumbnail@2x.png": png(300, 180) },
+        { ...thumbnail, "thumbnail.png": Buffer.from("not a png at all, just text").toString("base64") },
+        { "thumbnail.png": thumbnail["thumbnail.png"] },
+        { ...thumbnail, "background.png": thumbnail["thumbnail.png"] },
+        "thumbnail",
+      ];
+      for (const picture of wrong) {
+        await expect(readImportRequest(request(body(picture)), { allowPicture: true })).rejects.toMatchObject({ status: 400, message: expect.stringContaining("picture") });
+      }
+    });
   });
 });

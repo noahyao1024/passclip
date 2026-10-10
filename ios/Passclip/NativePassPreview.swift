@@ -13,8 +13,10 @@ struct NativePassPreview: View {
     let layout: WalletLayout
     /// The picture Wallet shows, blurred, behind an event ticket's whole front.
     var artwork: Data?
+    /// The event picture, which Wallet shows next to the title.
+    var picture: UIImage?
     @State private var back = false
-    private var picture: UIImage? { back ? nil : artwork.flatMap(UIImage.init(data:)) }
+    private var backdrop: UIImage? { back ? nil : artwork.flatMap(UIImage.init(data:)) }
     private var background: Color { Color(hex: pass["style"]?["backgroundColor"]?.string ?? "#2F3640") }
     private var foreground: Color { Color(hex: pass["style"]?["foregroundColor"]?.string ?? "#FFFFFF") }
     private var label: Color { Color(hex: pass["style"]?["labelColor"]?.string ?? "#C9D1DC") }
@@ -36,13 +38,19 @@ struct NativePassPreview: View {
                 }
             } else {
                 row(layout.headerFields)
-                row(layout.primaryFields, primary: true)
+                HStack(alignment: .top, spacing: 12) {
+                    row(layout.primaryFields, primary: true)
+                    if let picture {
+                        Image(uiImage: picture).resizable().scaledToFill().frame(width: 60, height: 90)
+                            .clipShape(RoundedRectangle(cornerRadius: 6)).accessibilityLabel("Event picture")
+                    }
+                }
                 row(layout.secondaryFields)
                 row(layout.auxiliaryFields.filter { ($0.row ?? 0) == 0 })
                 // An event ticket's second row of auxiliary fields, as Wallet shows it.
                 if layout.auxiliaryFields.contains(where: { $0.row == 1 }) { row(layout.auxiliaryFields.filter { $0.row == 1 }) }
                 // As in Wallet, the barcode sits at the bottom of the card and the picture fills the space above it.
-                if picture != nil { Spacer(minLength: 12) }
+                if backdrop != nil { Spacer(minLength: 12) }
                 if let barcode = pass["barcode"], let message = barcode["message"]?.string {
                     if let image = barcodeImage(format: barcode["format"]?.string ?? "", message: message) {
                         Image(uiImage: image).interpolation(.none).resizable().scaledToFit().frame(maxHeight: 135).padding(8).background(.white).clipShape(RoundedRectangle(cornerRadius: 4)).accessibilityLabel("Barcode for this pass")
@@ -54,11 +62,11 @@ struct NativePassPreview: View {
             }
         }
         .foregroundStyle(foreground).padding(20)
-        .frame(maxWidth: .infinity, minHeight: picture == nil ? nil : 460, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: backdrop == nil ? nil : 460, alignment: .topLeading)
         .background {
             ZStack {
                 background
-                if let picture { Image(uiImage: picture).resizable().scaledToFill().scaleEffect(1.15).blur(radius: 8) }
+                if let backdrop { Image(uiImage: backdrop).resizable().scaledToFill().scaleEffect(1.15).blur(radius: 8) }
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 14))

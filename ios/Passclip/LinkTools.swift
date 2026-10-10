@@ -82,10 +82,16 @@ enum LinkFetcher {
         if DocumentReader.isPDF(data) || UIImage(data: data) != nil {
             document = try await DocumentReader.read(data)
         } else {
-            let page = HTMLText.extract(decode(data, response))
+            let html = decode(data, response)
+            let page = HTMLText.extract(html)
             guard page.text.filter({ $0.isLetter || $0.isNumber }).count >= 40 else { throw LinkError.noText }
-            document = ReadDocument(text: String(page.text.prefix(64 * 1024)), links: LinkFinder.links(in: decode(data, response)),
+            document = ReadDocument(text: String(page.text.prefix(64 * 1024)), links: LinkFinder.links(in: html),
                                     source: DocumentSource(kind: "webpage", name: page.title ?? url.host))
+            // Ticket pages declare a preview picture for sharing, often the event's poster. It's optional.
+            if let imageURL = HTMLText.previewImage(in: html, base: response.url ?? url),
+               let (imageData, _) = try? await download(imageURL), imageData.count <= 5 * 1024 * 1024, UIImage(data: imageData) != nil {
+                document.picture = imageData
+            }
         }
         // The link the person opened comes first: it is the original.
         document.links.removeAll { $0.url == url.absoluteString }
@@ -94,7 +100,7 @@ enum LinkFetcher {
         return document
     }
 
-    private static func download(_ url: URL) async throws -> (Data, URLResponse) {
+    static func download(_ url: URL) async throws -> (Data, URLResponse) {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 20
         configuration.timeoutIntervalForResource = 45
@@ -143,6 +149,23 @@ enum HTMLText {
         text = text.replacingOccurrences(of: #"<[^>]+>"#, with: "", options: .regularExpression)
         let lines = decode(text).components(separatedBy: .newlines).map(collapse).filter { !$0.isEmpty }
         return (lines.joined(separator: "\n"), title)
+    }
+
+    /// The page's preview picture (Open Graph or Twitter card), as a secure link.
+    static func previewImage(in html: String, base: URL) -> URL? {
+        guard let tags = try? NSRegularExpression(pattern: #"<meta\b[^>]*>"#, options: [.caseInsensitive]),
+              let content = try? NSRegularExpression(pattern: #"content\s*=\s*["']([^"']+)["']"#, options: [.caseInsensitive]),
+              let kind = try? NSRegularExpression(pattern: #"(?:property|name)\s*=\s*["'](og:image(?::secure_url)?|twitter:image)["']"#, options: [.caseInsensitive]) else { return nil }
+        for match in tags.matches(in: html, range: NSRange(html.startIndex..., in: html)) {
+            guard let range = Range(match.range, in: html) else { continue }
+            let tag = String(html[range])
+            let whole = NSRange(tag.startIndex..., in: tag)
+            guard kind.firstMatch(in: tag, range: whole) != nil, let found = content.firstMatch(in: tag, range: whole),
+                  let value = Range(found.range(at: 1), in: tag) else { continue }
+            if let url = URL(string: decode(String(tag[value])).trimmingCharacters(in: .whitespaces), relativeTo: base)?.absoluteURL,
+               url.scheme?.lowercased() == "https" { return url }
+        }
+        return nil
     }
 
     private static func collapse(_ text: String) -> String {

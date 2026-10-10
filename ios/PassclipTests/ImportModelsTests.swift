@@ -288,7 +288,8 @@ final class SourceCheckTests: XCTestCase {
         var item = ExtractedPass(type: "eventTicket", title: "SISTIC E-Ticket")
         item.confirmationCode = "20261005-001769"
         let wrong = check(item)
-        XCTAssertNil(wrong.passes[0].confirmationCode)
+        // The wrong number is dropped and the one labeled "Transaction No." in the text is used instead.
+        XCTAssertEqual(wrong.passes[0].confirmationCode, "20261005-001796")
         XCTAssertTrue(wrong.warnings.contains { $0.contains("booking number") && $0.contains("left out") })
         item.confirmationCode = "20261005 001796"
         XCTAssertEqual(check(item).passes[0].confirmationCode, "20261005 001796", "Spaces and dashes don't matter")
@@ -496,5 +497,53 @@ final class BilingualTitleTests: XCTestCase {
         let already = SourceCheck.apply(to: [ExtractedPass(type: "eventTicket", title: english)], source: document, readerPrefersLatin: true)
         XCTAssertEqual(already.passes[0].title, english)
         XCTAssertNil(already.passes[0].alternateTitle)
+    }
+}
+
+final class EventPictureTests: XCTestCase {
+    private func image(width: Int, height: Int) -> UIImage {
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1
+        return UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format).image { context in
+            UIColor.systemPurple.setFill(); context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        }
+    }
+    private func size(_ base64: String?) throws -> CGSize {
+        let data = try XCTUnwrap(base64.flatMap { Data(base64Encoded: $0) })
+        return try XCTUnwrap(UIImage(data: data)).size
+    }
+
+    func testMakesWalletThumbnailsAtThreeSizesForPostersAndPhotos() throws {
+        let poster = try XCTUnwrap(PosterImage.thumbnailFiles(from: image(width: 800, height: 1200)))
+        XCTAssertEqual(Set(poster.keys), ["thumbnail.png", "thumbnail@2x.png", "thumbnail@3x.png"])
+        XCTAssertEqual(try size(poster["thumbnail.png"]), CGSize(width: 60, height: 90))
+        XCTAssertEqual(try size(poster["thumbnail@3x.png"]), CGSize(width: 180, height: 270))
+        // A wide photo is cropped to a square, the widest Wallet shows.
+        let photo = try XCTUnwrap(PosterImage.thumbnailFiles(from: image(width: 1600, height: 900)))
+        XCTAssertEqual(try size(photo["thumbnail@2x.png"]), CGSize(width: 180, height: 180))
+        XCTAssertNil(PosterImage.thumbnailFiles(from: image(width: 10, height: 10)))
+    }
+
+    func testSendsThePictureOnlyWhenThereIsOne() throws {
+        let plain = try JSONSerialization.jsonObject(with: JSONEncoder().encode(ImportRequest(text: "{}", fallbackTimeZone: "UTC"))) as? [String: Any]
+        XCTAssertNil(plain?["thumbnail"])
+        let withPicture = try JSONSerialization.jsonObject(with: JSONEncoder().encode(ImportRequest(text: "{}", fallbackTimeZone: "UTC", thumbnail: ["thumbnail.png": "AAAA"]))) as? [String: Any]
+        XCTAssertEqual((withPicture?["thumbnail"] as? [String: String])?["thumbnail.png"], "AAAA")
+    }
+
+    func testFindsATicketPagesPreviewPicture() {
+        let base = URL(string: "https://tickets.example.com/event/42")!
+        let html = #"<head><meta name="description" content="x"><meta content="/img/poster.jpg?w=600&amp;h=900" property="og:image"></head>"#
+        XCTAssertEqual(HTMLText.previewImage(in: html, base: base)?.absoluteString, "https://tickets.example.com/img/poster.jpg?w=600&h=900")
+        XCTAssertEqual(HTMLText.previewImage(in: #"<meta name="twitter:image" content="https://cdn.example.com/a.png">"#, base: base)?.absoluteString, "https://cdn.example.com/a.png")
+        XCTAssertNil(HTMLText.previewImage(in: #"<meta property="og:image" content="http://insecure.example.com/a.png">"#, base: base))
+        XCTAssertNil(HTMLText.previewImage(in: "<p>No picture</p>", base: base))
+    }
+
+    func testFindsALabeledBookingNumberTheModelMissed() {
+        let document = "Patron Name\nDAMAI .\nTransaction No.\n20261005-001796\nSISTIC Terms and Conditions"
+        let missed = SourceCheck.apply(to: [ExtractedPass(type: "eventTicket", title: "SISTIC Terms and Conditions")], source: document)
+        XCTAssertEqual(missed.passes[0].confirmationCode, "20261005-001796")
+        XCTAssertEqual(SourceCheck.apply(to: [ExtractedPass(type: "eventTicket", title: "Order Summary")], source: "Order Summary\nBooking reference: AB12CD").passes[0].confirmationCode, "AB12CD")
+        XCTAssertNil(SourceCheck.apply(to: [ExtractedPass(type: "eventTicket", title: "Order Summary")], source: "Order Summary\nThank you").passes[0].confirmationCode)
     }
 }
