@@ -10,14 +10,13 @@ import { layoutPass } from "@/lib/pass/fields";
 describe("JSON made by the iPhone app's email reader", () => {
   const result = processImport(readFileSync("ios/PassclipTests/Fixtures/ai-ticket.json", "utf8"));
 
-  it("is a valid import, with the long title shortened and a time zone applied", () => {
+  it("is a valid import, with a short title and a time zone applied", () => {
     expect(result.ok ? [] : result.errors).toEqual([]);
     if (!result.ok) return;
     const [pass] = result.value.passes;
-    expect(Array.from(pass.title).length).toBeLessThanOrEqual(80);
+    expect(Array.from(pass.title).length).toBeLessThanOrEqual(61);
     expect(pass.start).toBe("2026-10-10T19:30:00+08:00");
     expect(result.warnings.map((warning) => warning.message)).toEqual(expect.arrayContaining([
-      "Shortened the title to 80 characters. Check that it still reads well.",
       "Read by Apple Intelligence on this iPhone. Check every detail against your email.",
       "The barcode isn't included. Add it from a screenshot of your ticket.",
     ]));

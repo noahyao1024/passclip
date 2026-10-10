@@ -109,7 +109,7 @@ struct GeneratedEmail {
 struct GeneratedPass {
     @Guide(description: "eventTicket for concerts, shows, movies, sports and exhibitions; boardingPass for flights, trains, buses and ferries; storeCard for memberships and loyalty cards; coupon for offers; generic for anything else", .anyOf(["eventTicket", "boardingPass", "storeCard", "coupon", "generic"]))
     var type: String
-    @Guide(description: "Event name or route, copied from the email")
+    @Guide(description: "Short event name or route, under 60 characters. Drop the city, translations and subtitles. Copy the wording from the email.")
     var title: String
     @Guide(description: "Seller, airline or organizer")
     var organization: String?
@@ -121,7 +121,7 @@ struct GeneratedPass {
     var start: String?
     @Guide(description: "End or arrival, same format. Usually empty.")
     var end: String?
-    @Guide(description: "IANA time zone of the place, like Asia/Singapore, only when the city or country makes it clear")
+    @Guide(description: "IANA time zone of the place, like Asia/Singapore. Fill it whenever the venue's city or country is known.")
     var timeZone: String?
     var venueName: String?
     var venueCity: String?

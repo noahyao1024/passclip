@@ -308,7 +308,16 @@ struct ContentView: View {
         do {
             let response = try await PassclipService(server: sentServer).preview(text: sentText, timeZone: sentZone)
             // Editing while a request is in flight must not replace current input with stale results.
-            if text == sentText && server == sentServer && timeZone == sentZone { result = response; notice = "" }
+            if text == sentText && server == sentServer && timeZone == sentZone {
+                result = response; notice = ""
+                // One pass and exactly one code read from the document the person shared: use it, and say so.
+                // With several codes or passes, the person chooses (CLAUDE.md rule 3).
+                if suggestedCodes.count == 1, let code = suggestedCodes.first, response.value.passes.count == 1,
+                   response.value.passes[0]["barcode"]?["message"]?.string == nil {
+                    result?.value.setBarcode(code, at: 0)
+                    notice = "Added the \(BarcodeReader.names[code.format] ?? "code") found in your document. Check that it matches your ticket."
+                }
+            }
         } catch { self.error = error.localizedDescription }
     }
 

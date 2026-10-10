@@ -212,3 +212,13 @@ final class DocumentReadingTests: XCTestCase {
         catch { XCTAssertTrue(error is DocumentError) }
     }
 }
+
+final class TitleShorteningTests: XCTestCase {
+    func testLongEventTitleDropsCityThenCutsAtAWord() {
+        let title = "2026 Deyunshe 30th Anniversary - Yue Yunpeng & Sun Yue Cross Talk Show in Singapore"
+        let short = ImportJSONBuilder.shortTitle(title, city: "Singapore")
+        XCTAssertLessThanOrEqual(short.count, ImportJSONBuilder.titleLimit + 1)
+        XCTAssertTrue(short.hasSuffix("…"))
+        XCTAssertEqual(ImportJSONBuilder.shortTitle("Short Show", city: "Singapore"), "Short Show")
+    }
+}
