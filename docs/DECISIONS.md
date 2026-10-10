@@ -145,3 +145,8 @@ Apple's Add to Apple Wallet guidelines (checked 2026-10-03): use only Apple's ba
 - Barcodes in a PDF or image are found with Vision and offered as "Use this code". They are never added automatically (CLAUDE.md rule 3).
 - Not handled: .eml and .html email files. Share the email's text instead.
 - Not tested here: Vision doesn't run in the Simulator, so scanned-PDF reading and barcode finding need a real iPhone. PDF text reading is unit-tested.
+
+## D24: Short titles and one-code auto-add (iPhone app)
+
+- The model is asked for a title under 60 characters, and the app also shortens it (drops a trailing "in <city>", then cuts at a word and adds "…"). The full name goes first in the pass notes. A first real ticket gave an 80-character title that Wallet cut off.
+- When someone shares a document and exactly one barcode is read from it for a single pass, it is added to the preview with a note to check it. With several codes or passes, the person still taps "Use this code". The code is always a real read from their document (CLAUDE.md rule 3), never from the AI.

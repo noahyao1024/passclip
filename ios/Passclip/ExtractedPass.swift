@@ -59,7 +59,8 @@ enum ImportJSONBuilder {
 
     private static func node(for item: ExtractedPass, warnings: inout [String]) -> Node? {
         let organization = clean(item.organization)
-        guard let title = clean(item.title) ?? organization else { return nil }
+        guard let fullTitle = clean(item.title) ?? organization else { return nil }
+        let title = shortTitle(fullTitle, city: clean(item.venueCity))
 
         var type = passTypes.contains(item.type) ? item.type : "generic"
         var transit: Node?
@@ -98,7 +99,9 @@ enum ImportJSONBuilder {
         if !seat.isEmpty { fields.append(("seat", .object(seat))) }
 
         if let transit { fields.append(("transit", transit)) }
-        add(&fields, "notes", clean(item.notes))
+        var notes = clean(item.notes)
+        if title != fullTitle { notes = ["Full name: \(fullTitle)", notes].compactMap { $0 }.joined(separator: "\n") }
+        add(&fields, "notes", notes)
         return .object(fields)
     }
 
@@ -121,6 +124,24 @@ enum ImportJSONBuilder {
     }
 
     // MARK: Values
+
+    static let titleLimit = 60
+
+    /// Wallet cuts long titles with "…", so keep it short: drop a trailing "in <city>", then cut at a word.
+    static func shortTitle(_ title: String, city: String?) -> String {
+        var text = title
+        if let city, text.count > titleLimit {
+            for joiner in [" in ", " at ", " - ", " – "] where text.lowercased().hasSuffix(joiner + city.lowercased()) {
+                text = String(text.dropLast(joiner.count + city.count))
+            }
+        }
+        guard text.count > titleLimit else { return text }
+        let cut = String(text.prefix(titleLimit))
+        let words = cut.split(separator: " ", omittingEmptySubsequences: true)
+        let endsOnWord = cut.hasSuffix(" ") || text.dropFirst(titleLimit).first == " "
+        let kept = words.count > 1 && !endsOnWord ? words.dropLast().joined(separator: " ") : words.joined(separator: " ")
+        return kept.trimmingCharacters(in: CharacterSet(charactersIn: " -–,&")) + "…"
+    }
 
     private static let empties: Set<String> = ["n/a", "na", "null", "none", "unknown", "-", "—", "not provided", "not specified", "not available"]
 
