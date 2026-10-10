@@ -163,7 +163,7 @@ tickets@bluelantern.example",
   ],
   "secondaryFields": [
     {
-      "dateStyle": "PKDateStyleMedium",
+      "dateStyle": "PKDateStyleNone",
       "ignoresTimeZone": true,
       "key": "starts",
       "label": "Starts",

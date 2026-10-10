@@ -70,7 +70,7 @@ hello@northwind-books.example",
 
 exports[`mapToPassJson > maps event-tickets with the exact preview fields 1`] = `
 {
-  "backgroundColor": "rgb(45, 30, 74)",
+  "backgroundColor": "rgb(70, 15, 49)",
   "barcodes": [
     {
       "altText": "BL48213-01",
@@ -186,7 +186,7 @@ tickets@bluelantern.example",
     ],
     "secondaryFields": [
       {
-        "dateStyle": "PKDateStyleMedium",
+        "dateStyle": "PKDateStyleNone",
         "ignoresTimeZone": true,
         "key": "starts",
         "label": "Starts",
@@ -204,7 +204,7 @@ tickets@bluelantern.example",
   "foregroundColor": "rgb(255, 255, 255)",
   "formatVersion": 1,
   "groupingIdentifier": "BL-48213",
-  "labelColor": "rgb(205, 190, 240)",
+  "labelColor": "rgb(246, 203, 229)",
   "logoText": "Blue Lantern Hall",
   "organizationName": "Blue Lantern Hall",
   "passTypeIdentifier": "pass.com.example.test",

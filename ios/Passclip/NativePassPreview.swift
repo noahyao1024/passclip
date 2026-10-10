@@ -11,7 +11,10 @@ private extension Color {
 struct NativePassPreview: View {
     let pass: JSONValue
     let layout: WalletLayout
+    /// The picture Wallet shows, blurred, behind an event ticket's whole front.
+    var artwork: Data?
     @State private var back = false
+    private var picture: UIImage? { back ? nil : artwork.flatMap(UIImage.init(data:)) }
     private var background: Color { Color(hex: pass["style"]?["backgroundColor"]?.string ?? "#2F3640") }
     private var foreground: Color { Color(hex: pass["style"]?["foregroundColor"]?.string ?? "#FFFFFF") }
     private var label: Color { Color(hex: pass["style"]?["labelColor"]?.string ?? "#C9D1DC") }
@@ -36,6 +39,8 @@ struct NativePassPreview: View {
                 row(layout.primaryFields, primary: true)
                 row(layout.secondaryFields)
                 row(layout.auxiliaryFields)
+                // As in Wallet, the barcode sits at the bottom of the card and the picture fills the space above it.
+                if picture != nil { Spacer(minLength: 12) }
                 if let barcode = pass["barcode"], let message = barcode["message"]?.string {
                     if let image = barcodeImage(format: barcode["format"]?.string ?? "", message: message) {
                         Image(uiImage: image).interpolation(.none).resizable().scaledToFit().frame(maxHeight: 135).padding(8).background(.white).clipShape(RoundedRectangle(cornerRadius: 4)).accessibilityLabel("Barcode for this pass")
@@ -46,8 +51,15 @@ struct NativePassPreview: View {
                 } else { Text("No barcode yet. Add it from a screenshot below.").font(.caption) }
             }
         }
-        .foregroundStyle(foreground).padding(20).frame(maxWidth: .infinity, alignment: .leading)
-        .background(background, in: RoundedRectangle(cornerRadius: 14))
+        .foregroundStyle(foreground).padding(20)
+        .frame(maxWidth: .infinity, minHeight: picture == nil ? nil : 460, alignment: .topLeading)
+        .background {
+            ZStack {
+                background
+                if let picture { Image(uiImage: picture).resizable().scaledToFill().scaleEffect(1.15).blur(radius: 8) }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
     private func row(_ fields: [WalletField], primary: Bool = false) -> some View {
         HStack(alignment: .top, spacing: 12) {

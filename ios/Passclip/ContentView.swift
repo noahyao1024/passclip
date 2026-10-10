@@ -231,7 +231,7 @@ struct ContentView: View {
         ForEach(result.value.passes.indices, id: \.self) { index in
             VStack(alignment: .leading, spacing: 12) {
                 if result.value.passes.count > 1 { Text("Pass \(index + 1)").font(.footnote.weight(.semibold)).foregroundStyle(Brand.muted) }
-                NativePassPreview(pass: result.value.passes[index], layout: result.layouts[index])
+                NativePassPreview(pass: result.value.passes[index], layout: result.layouts[index], artwork: result.artwork(at: index))
                 CodeFromImage(current: result.value.passes[index]["barcode"], suggested: suggestedCodes) { code in
                     self.result?.value.setBarcode(code, at: index)
                     notice = "Added the \(BarcodeReader.names[code.format] ?? "code") to pass \(index + 1)."

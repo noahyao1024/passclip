@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { processImport } from "../import/process";
+import { artworkSpec } from "./artwork";
 import { buildPass } from "./build";
 import { mapToPassJson } from "./map";
 import type { SigningConfig } from "./signing";
@@ -44,6 +45,10 @@ describe("signed pass package", () => {
     if (expected.relevantDates) expected.relevantDates = expected.relevantDates.map(({ startDate, endDate }) => ({ startDate: new Date(startDate).toISOString(), endDate: new Date(endDate).toISOString() }));
     expect(pass).toEqual({ ...expected, ...(expected.eventTicket ? { eventTicket: { ...expected.eventTicket, additionalInfoFields: [] } } : {}) });
     expect(manifest).toHaveProperty("icon@3x.png");
+    // An event ticket on a dark color gets a picture behind the card instead of the neutral logo.
+    const picture = result.value.passes[0].type === "eventTicket" && artworkSpec(result.value.passes[0].style) !== undefined;
+    for (const file of ["background.png", "background@2x.png", "background@3x.png"]) expect(manifest.hasOwnProperty(file)).toBe(picture);
+    for (const file of ["logo.png", "logo@2x.png", "logo@3x.png"]) expect(manifest.hasOwnProperty(file)).toBe(!picture);
     execFileSync("openssl", ["cms", "-verify", "-binary", "-inform", "DER", "-in", path.join(target, "signature"), "-content", path.join(target, "manifest.json"), "-CAfile", path.join(dir, "ca.pem"), "-purpose", "any", "-out", path.join(target, "verified.json")], { stdio: "pipe" });
     // The test checks our synthetic CA separately; it is never an Apple certificate.
     execFileSync("openssl", ["verify", "-CAfile", path.join(dir, "ca.pem"), path.join(dir, "signer.pem")], { stdio: "pipe" });

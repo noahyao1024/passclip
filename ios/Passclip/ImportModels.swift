@@ -76,6 +76,13 @@ struct ImportResponse: Decodable {
     let warnings: [ImportNotice]
     let layouts: [WalletLayout]
     let signingAvailable: Bool
+    /// The picture behind each event ticket, as base64 PNG (null for other passes). Older servers send none.
+    let artwork: [String?]?
+
+    func artwork(at index: Int) -> Data? {
+        guard let artwork, artwork.indices.contains(index), let encoded = artwork[index] else { return nil }
+        return Data(base64Encoded: encoded)
+    }
 }
 struct APIErrorResponse: Decodable { let errors: [ImportNotice] }
 struct ImportRequest: Encodable {

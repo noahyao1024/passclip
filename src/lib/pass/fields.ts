@@ -118,7 +118,8 @@ export function layoutPass(pass: Pass, options: LayoutOptions = {}): PassLayout 
     case "eventTicket":
       front("headerFields", date("date", "Date", pass.start, SHORT));
       front("primaryFields", text("title", pass.subtitle ?? "Event", pass.title));
-      front("secondaryFields", date("starts", "Starts", pass.start, MEDIUM, SHORT), text("venue", "Venue", pass.venue?.name));
+      // The header already shows the date, so "Starts" shows only the time, and only when there is one.
+      front("secondaryFields", pass.start?.includes("T") ? date("starts", "Starts", pass.start, NONE, SHORT) : undefined, text("venue", "Venue", pass.venue?.name));
       front("auxiliaryFields", text("section", "Section", pass.seat?.section), text("row", "Row", pass.seat?.row), text("seat", "Seat", pass.seat?.number), text("entrance", "Entrance", pass.seat?.entrance));
       // The seat category (like "CAT 2") and the booking number fill spare room on the front, so a
       // ticket without a seat number isn't left nearly empty. When the row is full they stay on the back.

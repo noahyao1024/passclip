@@ -404,3 +404,16 @@ final class LinksAndTitlesTests: XCTestCase {
         XCTAssertFalse(page.text.contains("color"))
     }
 }
+
+final class ArtworkResponseTests: XCTestCase {
+    func testReadsThePictureForEachPassAndToleratesOlderServers() throws {
+        let png = Data([0x89, 0x50, 0x4e, 0x47]).base64EncodedString()
+        let withArt = #"{"value":{"passes":[{},{}]},"warnings":[],"layouts":[],"signingAvailable":true,"artwork":["\#(png)",null]}"#
+        let response = try JSONDecoder().decode(ImportResponse.self, from: Data(withArt.utf8))
+        XCTAssertEqual(response.artwork(at: 0), Data([0x89, 0x50, 0x4e, 0x47]))
+        XCTAssertNil(response.artwork(at: 1))
+        XCTAssertNil(response.artwork(at: 5))
+        let older = #"{"value":{"passes":[{}]},"warnings":[],"layouts":[],"signingAvailable":false}"#
+        XCTAssertNil(try JSONDecoder().decode(ImportResponse.self, from: Data(older.utf8)).artwork(at: 0))
+    }
+}

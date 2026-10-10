@@ -181,7 +181,9 @@ enum OnDeviceExtractor {
     static func extract(from email: String) async throws -> [ExtractedPass] {
         let model = SystemLanguageModel.default
         let today = Date.now.formatted(.iso8601.year().month().day())
-        let fullInstructions = instructions + "\nToday is \(today)."
+        // The person's language decides which one to copy when a name is written in several.
+        let language = Locale(identifier: "en").localizedString(forLanguageCode: Locale.current.language.languageCode?.identifier ?? "en") ?? "English"
+        let fullInstructions = instructions + "\nThe person reads \(language). If a name is written in several languages, copy the \(language) one when there is one, and otherwise the first.\nToday is \(today)."
         let prompt = try await fitPrompt(for: email, instructions: fullInstructions, model: model)
 
         let session = LanguageModelSession(model: model, instructions: fullInstructions)
