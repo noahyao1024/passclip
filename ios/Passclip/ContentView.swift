@@ -218,7 +218,7 @@ struct ContentView: View {
         VStack(spacing: 10) {
             Image(systemName: "wallet.pass").font(.system(size: 40, weight: .light)).foregroundStyle(Brand.signal)
             Text("Your passes appear here").font(.headline).foregroundStyle(Brand.ink)
-            Text(reader.isReady ? "Paste your ticket email and Apple Intelligence fills in the pass on this iPhone. Then add the barcode from a screenshot and add it to Wallet."
+            Text(reader.isReady ? "Paste a ticket email or link, or choose a PDF or screenshot. Apple Intelligence fills in the pass on this iPhone, with the barcode from your ticket. Check it, then add it to Wallet."
                                 : "Check every detail against your ticket, add the barcode from a screenshot if it's missing, then add the pass to Wallet.")
                 .font(.subheadline).foregroundStyle(Brand.muted).multilineTextAlignment(.center)
         }
@@ -257,19 +257,9 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 12) {
                 if result.value.passes.count > 1 { Text("Pass \(index + 1)").font(.footnote.weight(.semibold)).foregroundStyle(Brand.muted) }
                 NativePassPreview(pass: result.value.passes[index], layout: result.layouts[index], artwork: result.artwork(at: index), picture: pictures[index])
-                if ["eventTicket", "generic"].contains(result.value.passes[index]["type"]?.string ?? "") {
-                    EventPictureCard(picture: Binding(get: { pictures[index] }, set: { setPicture($0, at: index) }))
-                }
-                if CalendarEvent.offered(for: result.value.passes[index]) {
-                    Button { calendarEvent = CalendarEvent.event(for: result.value.passes[index], in: Self.eventStore) } label: {
-                        Label("Add to Calendar", systemImage: "calendar.badge.plus")
-                    }
-                    .buttonStyle(SecondaryButtonStyle())
-                }
-                CodeFromImage(current: result.value.passes[index]["barcode"], suggested: suggestedCodes) { code in
-                    self.result?.value.setBarcode(code, at: index)
-                    notice = "Added the \(BarcodeReader.names[code.format] ?? "code") to pass \(index + 1)."
-                }
+                // The main action sits right under the pass. A pass without a barcode asks for one first.
+                let hasCode = result.value.passes[index]["barcode"]?["message"]?.string != nil
+                if !hasCode { codeCard(index) }
                 if result.signingAvailable {
                     WalletAddButton { Task { await addToWallet(index) } }
                         .frame(height: 50)
@@ -278,6 +268,16 @@ struct ContentView: View {
                 } else {
                     Text("Pass signing isn't set up on this server yet, so this is a preview.").font(.caption).foregroundStyle(Brand.muted)
                 }
+                if CalendarEvent.offered(for: result.value.passes[index]) {
+                    Button { calendarEvent = CalendarEvent.event(for: result.value.passes[index], in: Self.eventStore) } label: {
+                        Label("Add to Calendar", systemImage: "calendar.badge.plus")
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
+                }
+                if ["eventTicket", "generic"].contains(result.value.passes[index]["type"]?.string ?? "") {
+                    EventPictureCard(picture: Binding(get: { pictures[index] }, set: { setPicture($0, at: index) }))
+                }
+                if hasCode { codeCard(index) }
             }
             .padding(.bottom, 8)
         }
@@ -380,6 +380,13 @@ struct ContentView: View {
         text = document.text; suggestedCodes = document.codes; source = document.source
         suggestedPicture = document.picture.flatMap(UIImage.init(data:))
         linkChoices = document.links.enumerated().map { LinkChoice(link: $0.element, on: $0.offset == 0) }
+    }
+
+    private func codeCard(_ index: Int) -> some View {
+        CodeFromImage(current: result?.value.passes[index]["barcode"], suggested: suggestedCodes) { code in
+            self.result?.value.setBarcode(code, at: index)
+            notice = "Added the \(BarcodeReader.names[code.format] ?? "code") to pass \(index + 1)."
+        }
     }
 
     private static let eventStore = EKEventStore()

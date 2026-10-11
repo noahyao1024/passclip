@@ -187,8 +187,10 @@ textarea::placeholder { color: var(--muted); opacity: 1; }
 .pass-flip-surface { position: absolute; inset: 0; width: 100%; border: 0; background: transparent; border-radius: inherit; }
 @media (max-width: 680px) {
   .site-header.page-shell { padding: 22px 20px; }
-  .footer.page-shell { padding: 23px 0 30px; }
+  /* The page shell's own margin wins over the footer's, so the side gutter goes on the padding. */
+  .footer.page-shell { padding: 23px 20px 30px; }
 }
+.footer-links { display: flex; flex-wrap: wrap; gap: 8px 18px; }
 .pass-heading { display: flex; gap: 12px; align-items: start; justify-content: space-between; }
 .pass-heading .pass-brand { flex: 1; min-width: 0; }
 .pass-heading .pass-header { flex: 0 1 42%; text-align: right; margin-bottom: 10px; }

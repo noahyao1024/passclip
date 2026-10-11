@@ -23,6 +23,8 @@ struct NativePassPreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
+                // Wallet shows a small ticket emblem before the organizer on designed event tickets.
+                if artwork != nil { Image(systemName: "ticket.fill").font(.headline).accessibilityHidden(true) }
                 Text(pass["organization"]?.string ?? pass["title"]?.string ?? "Pass") .font(.headline)
                 Spacer()
                 Button(back ? "Show front" : "Show back") { back.toggle() }.font(.caption).buttonStyle(.bordered)
@@ -76,7 +78,9 @@ struct NativePassPreview: View {
             ForEach(fields, id: \.key) { field in
                 VStack(alignment: .leading, spacing: 3) {
                     Text(field.label.uppercased()).font(.caption2).foregroundStyle(label)
+                    // Like Wallet, a value stays on one line and shrinks a little rather than breaking mid-word.
                     Text(display(field)).font(primary ? .title2.weight(.semibold) : .subheadline)
+                        .lineLimit(primary ? 2 : 1).minimumScaleFactor(0.7)
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
         }
