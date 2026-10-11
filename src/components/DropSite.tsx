@@ -53,12 +53,14 @@ function DeleteLinks({ files }: { files: AttachedFile[] }) {
   </section>;
 }
 
-export default function DropSite({ prompt, walletAvailable = false, development = false, uploads }: {
+export default function DropSite({ prompt, walletAvailable = false, development = false, uploads, appStoreUrl }: {
   prompt: string;
   walletAvailable?: boolean;
   development?: boolean;
   /** Set when file uploads are configured: where uploaded files live. */
   uploads?: { publicUrl: string };
+  /** The iPhone app on the App Store, once it is published. */
+  appStoreUrl?: string;
 }) {
   const [text, setText] = useState("");
   const [email, setEmail] = useState("");
@@ -174,6 +176,11 @@ export default function DropSite({ prompt, walletAvailable = false, development 
       <p className="eyebrow"><span className="small-clip"><ClipMark /></span> A little less digging for your ticket.</p>
       <h1 id="hero-title">Turn any ticket into an <span>Apple Wallet pass.</span></h1>
       <p className="hero-description">Your ticket has the details. Bring them here and see how they fit.</p>
+      {/* The app is the easiest way in: it reads the email itself. The website's AI-chat route stays below. */}
+      <div className="app-callout">
+        <p><strong>On iPhone, skip the AI chat.</strong> The Passclip app reads your ticket email, PDF or link itself, on your iPhone, and adds the pass to Wallet.</p>
+        {appStoreUrl ? <a className="app-callout-button" href={appStoreUrl}>Get the iPhone app</a> : <span className="app-callout-soon">Coming soon to the App Store</span>}
+      </div>
     </section>
 
     <div className="import-workspace">

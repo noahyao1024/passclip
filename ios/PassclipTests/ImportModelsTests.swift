@@ -599,3 +599,34 @@ final class CalendarAndColorTests: XCTestCase {
         PendingInput.shared.incoming = nil
     }
 }
+
+@MainActor
+final class PassHistoryTests: XCTestCase {
+    private func pass(_ title: String, start: String) throws -> JSONValue {
+        try JSONDecoder().decode(JSONValue.self, from: Data(##"{"type":"eventTicket","title":"\##(title)","start":"\##(start)","venue":{"name":"Hall"},"style":{"backgroundColor":"#123456"}}"##.utf8))
+    }
+
+    func testKeepsPassesOnThisIPhoneUpcomingFirstAndWithoutDuplicates() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let history = PassHistory(directory: folder)
+        history.save(pass: try pass("Later", start: "2099-12-01T20:00:00+08:00"), text: "later")
+        history.save(pass: try pass("Sooner", start: "2099-01-01T20:00:00+08:00"), text: "sooner")
+        history.save(pass: try pass("Old", start: "2001-01-01T20:00:00+08:00"), text: "old")
+        history.save(pass: try pass("Sooner", start: "2099-01-01T20:00:00+08:00"), text: "sooner again")
+        XCTAssertEqual(history.upcoming.map(\.title), ["Sooner", "Later"])
+        XCTAssertEqual(history.past.map(\.title), ["Old"])
+        XCTAssertEqual(history.passes.count, 3, "Adding the same pass again replaces it")
+        // It survives a restart, and removing works.
+        let reopened = PassHistory(directory: folder)
+        XCTAssertEqual(reopened.passes.count, 3)
+        reopened.remove(reopened.passes[0])
+        XCTAssertEqual(PassHistory(directory: folder).passes.count, 2)
+    }
+
+    func testShowsTheTimeAtTheEventsOwnPlace() throws {
+        let written = "2026-11-14T19:30:00+09:00"
+        let text = HistorySection.localTime(try XCTUnwrap(CalendarEvent.parse(written)), written: written)
+        XCTAssertTrue(text.contains("7:30"), text)
+    }
+}

@@ -98,6 +98,12 @@ export default function PrivacyPage() {
         does not store it.
       </p>
       <p>
+        The app keeps a list of the passes you add, so you can find and reopen
+        them. That list stays on your iPhone, in the app’s own storage; it isn’t
+        sent anywhere, and deleting the app deletes it. Touch and hold a pass to
+        remove it from the list.
+      </p>
+      <p>
         Add to Calendar in the app opens Apple’s own new-event screen, filled in
         on your iPhone. You save the event yourself; Passclip never reads your
         calendar.
