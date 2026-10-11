@@ -5,7 +5,7 @@ import PhotosUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
-    @AppStorage("serverURL", store: UserDefaults(suiteName: "group.noahyao.passclip")) private var server = "https://passclip.vercel.app"
+    @AppStorage("serverURL", store: UserDefaults(suiteName: "group.noahyao.passclip")) private var server = "https://passclip.see.sg"
     @State private var text: String
     @State private var timeZone = TimeZone.current.identifier
     @State private var result: ImportResponse?
@@ -570,12 +570,12 @@ private struct SettingsSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("https://passclip.vercel.app", text: $server)
+                    TextField("https://passclip.see.sg", text: $server)
                         .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                 } header: { Text("Passclip server") } footer: {
                     Text("Previews and Wallet passes are made by this HTTPS server. It doesn't save your tickets.")
                 }
-                Section { Button("Use the default server") { server = "https://passclip.vercel.app" } }
+                Section { Button("Use the default server") { server = "https://passclip.see.sg" } }
             }
             .navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }

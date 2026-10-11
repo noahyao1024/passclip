@@ -16,7 +16,7 @@ open ios/Passclip.xcodeproj
 
 Choose an iPhone simulator and run the Passclip scheme. The project, generated plist files and entitlements are ignored; `project.yml` is the source of truth. The prompt is copied as a resource directly from `../prompts/extract-to-passclip.txt`; no duplicate prompt is committed.
 
-The project uses the owner's identifiers: bundle IDs `noahyao.passclip` and `noahyao.passclip.share`, App Group `group.noahyao.passclip` and team `L6Z5MV9G94`. They are registered in the developer account; `xcodebuild -allowProvisioningUpdates` with Xcode signed in creates the profiles. The server address defaults to https://passclip.vercel.app. The group stores only the configured server address; ticket content remains in memory.
+The project uses the owner's identifiers: bundle IDs `noahyao.passclip` and `noahyao.passclip.share`, App Group `group.noahyao.passclip` and team `L6Z5MV9G94`. They are registered in the developer account; `xcodebuild -allowProvisioningUpdates` with Xcode signed in creates the profiles. The server address defaults to https://passclip.see.sg (https://passclip.vercel.app still works). The group stores only the configured server address; ticket content remains in memory.
 
 ## TestFlight
 
