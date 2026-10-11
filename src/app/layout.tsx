@@ -38,7 +38,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <nav className="footer-links" aria-label="More from Passclip">
             {/* Shown once the iPhone app is on the App Store (APP_STORE_URL). */}
             {process.env.APP_STORE_URL ? <a className="text-link" href={process.env.APP_STORE_URL}>Get the iPhone app</a> : null}
-            <Link className="text-link" href="/support">Help</Link>
+            <Link className="text-link" href="/support" prefetch={false}>Help</Link>
             <Link className="text-link" href="/privacy">How we handle your data</Link>
           </nav>
         </footer>
