@@ -26,6 +26,9 @@ struct ContentView: View {
     @State private var savedStyles: [Int: JSONValue] = [:]
     @State private var calendarEvent: EKEvent?
     @ObservedObject private var pending = PendingInput.shared
+    @ObservedObject private var history = PassHistory.shared
+    @AppStorage("seenOnboarding") private var seenOnboarding = false
+    @State private var showingAllChecks = false
     @State private var showingSettings = false
     @State private var walletPass: PKPass?
     @State private var showingWallet = false
@@ -56,7 +59,10 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     // With results, the passes take the screen; "Edit reply" brings the steps back.
                     if result == nil {
-                        header
+                        // The big welcome is for first visits; returning people go straight to their passes.
+                        if history.passes.isEmpty { header }
+                        // Returning people see their passes first; a new one starts in the box below.
+                        if !history.passes.isEmpty && !busy { HistorySection(history: history) { open($0) } }
                         if reader.isReady {
                             pasteCard(number: nil, title: "Paste your ticket email", placeholder: "Select the text of your ticket email, copy it, and paste it here. A link to your ticket works too.",
                                       label: "Ticket email, link or AI reply", footnote: "Your email is read on this iPhone. Only the pass details found in it go to your Passclip server for the preview.")
@@ -71,7 +77,11 @@ struct ContentView: View {
                         }
                     }
                     if !error.isEmpty { errorCard }
-                    if let result { results(result) } else if !busy { emptyState }
+                    if let result {
+                        results(result).transition(.opacity.combined(with: .move(edge: .bottom)))
+                    } else if !busy {
+                        if history.passes.isEmpty { emptyState }
+                    }
                 }
                 .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 24)
             }
@@ -88,6 +98,10 @@ struct ContentView: View {
             }
             .fileImporter(isPresented: $choosingFile, allowedContentTypes: [.item]) { readFile($0) }
             .sheet(isPresented: $showingSettings) { SettingsSheet(server: $server) }
+            // The first time the app opens (not in the share sheet): three cards on how it works.
+            .sheet(isPresented: Binding(get: { onClose == nil && !seenOnboarding && !startOnAppear }, set: { if !$0 { seenOnboarding = true } })) {
+                OnboardingSheet { seenOnboarding = true }
+            }
             .sheet(isPresented: $showingWallet) { if let walletPass { WalletSheet(pass: walletPass) { showingWallet = false; self.walletPass = nil } } }
             .task { if startOnAppear && hasText { await makePass() } }
             .onChange(of: scenePhase) { _, phase in if phase == .active { reader = EmailReader.status } }
@@ -268,16 +282,18 @@ struct ContentView: View {
                 } else {
                     Text("Pass signing isn't set up on this server yet, so this is a preview.").font(.caption).foregroundStyle(Brand.muted)
                 }
-                if CalendarEvent.offered(for: result.value.passes[index]) {
-                    Button { calendarEvent = CalendarEvent.event(for: result.value.passes[index], in: Self.eventStore) } label: {
-                        Label("Add to Calendar", systemImage: "calendar.badge.plus")
+                MoreOptions {
+                    if CalendarEvent.offered(for: result.value.passes[index]) {
+                        Button { calendarEvent = CalendarEvent.event(for: result.value.passes[index], in: Self.eventStore) } label: {
+                            Label("Add to Calendar", systemImage: "calendar.badge.plus")
+                        }
+                        .buttonStyle(SecondaryButtonStyle())
                     }
-                    .buttonStyle(SecondaryButtonStyle())
+                    if ["eventTicket", "generic"].contains(result.value.passes[index]["type"]?.string ?? "") {
+                        EventPictureCard(picture: Binding(get: { pictures[index] }, set: { setPicture($0, at: index) }))
+                    }
+                    if hasCode { codeCard(index) }
                 }
-                if ["eventTicket", "generic"].contains(result.value.passes[index]["type"]?.string ?? "") {
-                    EventPictureCard(picture: Binding(get: { pictures[index] }, set: { setPicture($0, at: index) }))
-                }
-                if hasCode { codeCard(index) }
             }
             .padding(.bottom, 8)
         }
@@ -289,8 +305,12 @@ struct ContentView: View {
         if !checks.isEmpty {
             Card {
                 Label("Check these details", systemImage: "exclamationmark.circle").font(.headline).foregroundStyle(Brand.ink)
-                ForEach(checks.indices, id: \.self) { i in
+                // The first two, then the rest on request, so the pass stays the main thing on screen.
+                ForEach(checks.indices.prefix(showingAllChecks ? checks.count : 2), id: \.self) { i in
                     Text((checks[i].from == "ai" ? "From your AI: " : "") + passPrefix(checks[i]) + checks[i].message).font(.subheadline).foregroundStyle(Brand.ink)
+                }
+                if checks.count > 2 {
+                    Button(showingAllChecks ? "Show fewer" : "Show \(checks.count - 2) more") { withAnimation { showingAllChecks.toggle() } }.font(.subheadline.weight(.semibold))
                 }
             }
             .overlay(alignment: .leading) { Rectangle().fill(Brand.stub).frame(width: 3).padding(.vertical, 12) }
@@ -389,6 +409,13 @@ struct ContentView: View {
         }
     }
 
+    /// Reopens a saved pass: its JSON goes back in the box and is previewed again.
+    private func open(_ saved: SavedPass) {
+        resetSource()
+        text = saved.text
+        Task { await makePass() }
+    }
+
     private static let eventStore = EKEventStore()
 
     private func apply(_ incoming: Incoming) {
@@ -430,7 +457,8 @@ struct ContentView: View {
             let response = try await PassclipService(server: sentServer).preview(text: sentText, timeZone: sentZone)
             // Editing while a request is in flight must not replace current input with stale results.
             if text == sentText && server == sentServer && timeZone == sentZone {
-                result = response; notice = ""
+                withAnimation(.spring(duration: 0.45)) { result = response }
+                notice = ""
                 // One pass and exactly one code read from the document the person shared: use it, and say so.
                 // With several codes or passes, the person chooses (CLAUDE.md rule 3).
                 if suggestedCodes.count == 1, let code = suggestedCodes.first, response.value.passes.count == 1,
@@ -459,6 +487,8 @@ struct ContentView: View {
             }
             let data = try await PassclipService(server: server).signedPass(text: payload, timeZone: timeZone, thumbnail: thumbnail)
             walletPass = try PKPass(data: data); showingWallet = true
+            history.save(pass: result.value.passes[index], text: payload)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch { self.error = error.localizedDescription }
     }
 }
@@ -593,4 +623,18 @@ private struct SettingsSheet: View {
 
 private extension Array {
     subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
+}
+
+/// Extra things to do with a pass, folded away so "Add to Apple Wallet" stays the one obvious step.
+private struct MoreOptions<Content: View>: View {
+    @ViewBuilder var content: Content
+    @State private var open = false
+    var body: some View {
+        DisclosureGroup(isExpanded: $open) {
+            VStack(alignment: .leading, spacing: 12) { content }.padding(.top, 10)
+        } label: {
+            Label("More options", systemImage: "ellipsis.circle").font(.subheadline.weight(.semibold)).foregroundStyle(Brand.ink)
+        }
+        .padding(.horizontal, 4)
+    }
 }

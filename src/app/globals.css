@@ -243,3 +243,9 @@ textarea::placeholder { color: var(--muted); opacity: 1; }
 .delete-links .copy-status:empty { display: none; }
 .delete-page .file-name { overflow-wrap: anywhere; }
 .delete-file-form { margin-top: 24px; }
+
+.app-callout { margin-top: 26px; padding: 16px 18px; display: flex; align-items: center; gap: 16px 22px; flex-wrap: wrap; justify-content: space-between; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--signal); border-radius: 12px; }
+.app-callout p { margin: 0; max-width: 520px; font-size: 15px; color: var(--foreground); }
+.app-callout-button { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 10px; background: var(--signal); color: var(--signal-text); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.app-callout-button:focus-visible { outline: 3px solid var(--signal); outline-offset: 3px; }
+.app-callout-soon { font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; }

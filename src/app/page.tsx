@@ -6,5 +6,5 @@ import { readStorageConfig } from "@/lib/storage/config";
 export default function Home() {
   const storage = readStorageConfig(process.env);
   return <DropSite prompt={prompt} walletAvailable={signingAvailable(process.env)} development={process.env.NODE_ENV === "development"}
-    uploads={storage.ok ? { publicUrl: storage.config.publicUrl } : undefined} />;
+    uploads={storage.ok ? { publicUrl: storage.config.publicUrl } : undefined} appStoreUrl={process.env.APP_STORE_URL} />;
 }
