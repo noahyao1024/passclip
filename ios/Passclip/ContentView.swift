@@ -30,12 +30,17 @@ struct ContentView: View {
     @AppStorage("seenOnboarding") private var seenOnboarding = false
     @State private var showingAllChecks = false
     @State private var showingSettings = false
-    @State private var walletPass: PKPass?
+    @State private var walletPasses: [PKPass] = []
+    /// Codes read from each document of a batch, by pass number, to put on the right pass.
+    @State private var batchCodes: [Int: FoundCode] = [:]
+    @State private var photoItems: [PhotosPickerItem] = []
     @State private var showingWallet = false
     @FocusState private var editing: Bool
     @Environment(\.scenePhase) private var scenePhase
     private let onClose: (() -> Void)?
     private let startOnAppear: Bool
+    /// Several files shared at once from the share sheet.
+    private let startingDocuments: [ReadDocument]
 
     /// `startOnAppear` makes the pass right away, for text, links and files shared from Mail, Safari or Files.
     init(_ incoming: Incoming = Incoming(), onClose: (() -> Void)? = nil, startOnAppear: Bool = false) {
@@ -48,6 +53,7 @@ struct ContentView: View {
         _suggestedPicture = State(initialValue: incoming.picture.flatMap(UIImage.init(data:)))
         self.onClose = onClose
         self.startOnAppear = startOnAppear
+        startingDocuments = incoming.documents
     }
 
     private var hasText: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -96,20 +102,25 @@ struct ContentView: View {
                 }
                 ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { editing = false } }
             }
-            .fileImporter(isPresented: $choosingFile, allowedContentTypes: [.item]) { readFile($0) }
+            .fileImporter(isPresented: $choosingFile, allowedContentTypes: [.item], allowsMultipleSelection: true) { readFiles($0) }
             .sheet(isPresented: $showingSettings) { SettingsSheet(server: $server) }
             // The first time the app opens (not in the share sheet): three cards on how it works.
             .sheet(isPresented: Binding(get: { onClose == nil && !seenOnboarding && !startOnAppear }, set: { if !$0 { seenOnboarding = true } })) {
                 OnboardingSheet { seenOnboarding = true }
             }
-            .sheet(isPresented: $showingWallet) { if let walletPass { WalletSheet(pass: walletPass) { showingWallet = false; self.walletPass = nil } } }
-            .task { if startOnAppear && hasText { await makePass() } }
+            .sheet(isPresented: $showingWallet) { if !walletPasses.isEmpty { WalletSheet(passes: walletPasses) { showingWallet = false; walletPasses = [] } } }
+            .onChange(of: photoItems) { _, items in if !items.isEmpty { Task { await openPhotos(items) } } }
+            .task {
+                if !startingDocuments.isEmpty { await makeBatch(startingDocuments) }
+                else if startOnAppear && hasText { await makePass() }
+            }
             .onChange(of: scenePhase) { _, phase in if phase == .active { reader = EmailReader.status } }
             .onChange(of: text) { _, _ in result = nil; notice = ""; pictures = [:]; savedStyles = [:] }
             .onReceive(pending.$incoming) { incoming in
                 // Siri or Shortcuts sent a ticket: start over with it and make the pass.
                 guard let incoming else { return }
                 pending.incoming = nil
+                if !incoming.documents.isEmpty { Task { await makeBatch(incoming.documents) }; return }
                 apply(incoming)
                 if !incoming.text.isEmpty { Task { await makePass() } }
             }
@@ -184,7 +195,11 @@ struct ContentView: View {
 
     private func pasteCard(number: Int?, title: String, placeholder: String, label: String, footnote: String) -> some View {
         Card {
-            if let number { StepHeading(number: number, title: title) } else { Text(title).font(.headline).foregroundStyle(Brand.ink) }
+            HStack {
+                if let number { StepHeading(number: number, title: title) } else { Text(title).font(.headline).foregroundStyle(Brand.ink) }
+                Spacer()
+                if hasText { Button("Clear", role: .destructive) { text = ""; error = ""; resetSource() }.font(.subheadline) }
+            }
             ZStack(alignment: .topLeading) {
                 TextEditor(text: $text)
                     .focused($editing)
@@ -203,9 +218,12 @@ struct ContentView: View {
             HStack(spacing: 8) {
                 PasteButton(payloadType: String.self) { strings in if let first = strings.first { text = first; resetSource() } }
                     .buttonBorderShape(.roundedRectangle(radius: 10)).labelStyle(.titleAndIcon)
-                Button { choosingFile = true } label: { Label("PDF or file", systemImage: "folder") }.buttonStyle(SecondaryButtonStyle())
+                Button { choosingFile = true } label: { Label("Files", systemImage: "folder").lineLimit(1).fixedSize() }.buttonStyle(SecondaryButtonStyle())
+                    .accessibilityHint("Choose one or more PDFs, screenshots or text files")
+                PhotosPicker(selection: $photoItems, maxSelectionCount: BatchImport.maxDocuments, matching: .images) { Label("Photos", systemImage: "photo.on.rectangle").lineLimit(1).fixedSize() }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .accessibilityHint("Choose one or more screenshots of tickets")
                 Spacer()
-                if hasText { Button("Clear", role: .destructive) { text = ""; error = ""; resetSource() }.font(.subheadline) }
             }
             Label(footnote, systemImage: "lock")
                 .font(.caption).foregroundStyle(Brand.muted)
@@ -255,6 +273,13 @@ struct ContentView: View {
             Button("Edit reply") { self.result = nil; editing = true }.font(.subheadline)
         }
         .padding(.top, 8)
+        if result.value.passes.count > 1 && result.signingAvailable {
+            Button { Task { await addAllToWallet() } } label: {
+                Label("Add all \(result.value.passes.count) to Apple Wallet", systemImage: "wallet.pass")
+            }
+            .buttonStyle(PrimaryButtonStyle())
+            .disabled(busy || !PKAddPassesViewController.canAddPasses())
+        }
         if result.value.passes.isEmpty {
             Card { Text("No passes found. Ask your AI to extract a ticket, booking, membership or coupon, then paste its reply.").font(.subheadline).foregroundStyle(Brand.muted) }
         }
@@ -342,15 +367,58 @@ struct ContentView: View {
         Task { try? await Task.sleep(for: .seconds(2)); copied = false }
     }
 
-    /// A PDF, screenshot, photo or text file. The kind comes from the file's content, not its name.
-    private func readFile(_ selection: Result<URL, Error>) {
+    /// PDFs, screenshots, photos or text files. The kind comes from each file's content, not its name.
+    private func readFiles(_ selection: Result<[URL], Error>) {
         do {
-            let url = try selection.get(); let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
-            let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-            guard size <= DocumentReader.maxBytes else { throw DocumentError.tooLarge }
-            let data = try Data(contentsOf: url)
-            let name = url.lastPathComponent
-            Task { await openDocument(data, name: name) }
+            let urls = try selection.get()
+            var files: [(Data, String)] = []
+            for url in urls.prefix(BatchImport.maxDocuments) {
+                let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
+                let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                guard size <= DocumentReader.maxBytes else { throw DocumentError.tooLarge }
+                files.append((try Data(contentsOf: url), url.lastPathComponent))
+            }
+            if files.count == 1 { Task { await openDocument(files[0].0, name: files[0].1) } }
+            else if !files.isEmpty { Task { await openBatch(files) } }
+        } catch { self.error = error.localizedDescription }
+    }
+
+    @MainActor private func openPhotos(_ items: [PhotosPickerItem]) async {
+        defer { photoItems = [] }
+        var files: [(Data, String?)] = []
+        for item in items { if let data = try? await item.loadTransferable(type: Data.self) { files.append((data, nil)) } }
+        guard !files.isEmpty else { error = "These pictures couldn't be opened. Take screenshots of your tickets and try those."; return }
+        if files.count == 1 { await openDocument(files[0].0, name: files[0].1) } else { await openBatch(files) }
+    }
+
+    /// Reads every document on this iPhone, then makes one pass per ticket.
+    @MainActor private func openBatch(_ files: [(Data, String?)]) async {
+        error = ""
+        var documents: [ReadDocument] = []
+        busy = true
+        for (index, file) in files.enumerated() {
+            busyLabel = "Opening \(index + 1) of \(files.count)…"
+            if let document = try? await DocumentReader.read(file.0, name: file.1) { documents.append(document) }
+        }
+        busy = false; busyLabel = ""
+        await makeBatch(documents)
+    }
+
+    @MainActor private func makeBatch(_ documents: [ReadDocument]) async {
+        guard !documents.isEmpty else { error = "Passclip couldn't read these files. Choose PDFs or screenshots of your tickets."; return }
+        guard reader.isReady else {
+            error = "Reading several tickets at once needs Apple Intelligence on this iPhone. Choose them one at a time and use the AI-chat steps."
+            return
+        }
+        busy = true; defer { busy = false; busyLabel = "" }
+        do {
+            let outcome = try await BatchImport.read(documents) { done, total in busyLabel = "Reading ticket \(done) of \(total)…" }
+            resetSource()
+            text = outcome.json
+            batchCodes = outcome.codes
+            busy = false
+            await preview()
+            if outcome.skipped > 0 { notice = [notice, "\(outcome.skipped) of \(documents.count) files had no ticket Passclip could read."].filter { !$0.isEmpty }.joined(separator: " ") }
         } catch { self.error = error.localizedDescription }
     }
 
@@ -448,7 +516,7 @@ struct ContentView: View {
         if let style = response.value.passes.first?["style"] { result?.value.passes[index] = result!.value.passes[index].setting("style", to: style) }
     }
 
-    private func resetSource() { source = DocumentSource(); suggestedCodes = []; linkChoices = []; suggestedPicture = nil }
+    private func resetSource() { source = DocumentSource(); suggestedCodes = []; linkChoices = []; suggestedPicture = nil; batchCodes = [:] }
 
     @MainActor private func preview() async {
         busy = true; busyLabel = "Checking your pass…"; error = ""; defer { busy = false; busyLabel = "" }
@@ -466,12 +534,39 @@ struct ContentView: View {
                     result?.value.setBarcode(code, at: 0)
                     notice = "Added the \(BarcodeReader.names[code.format] ?? "code") found in your document. Check that it matches your ticket."
                 }
+                // A batch: each document's own code goes on the pass made from it.
+                if !batchCodes.isEmpty {
+                    for (index, code) in batchCodes where response.value.passes.indices.contains(index) && response.value.passes[index]["barcode"]?["message"]?.string == nil {
+                        result?.value.setBarcode(code, at: index)
+                    }
+                    notice = "Added the codes found in your files. Check each one against its ticket."
+                }
                 // The ticket page's own picture goes on the first event pass; the person can change or remove it.
                 if pictures.isEmpty, let picture = suggestedPicture, response.value.passes.first?["type"]?.string == "eventTicket" {
                     pictures[0] = picture
                     notice = [notice, "Added the picture from the ticket page."].filter { !$0.isEmpty }.joined(separator: " ")
                 }
             }
+        } catch { self.error = error.localizedDescription }
+    }
+
+    /// Signs every pass, then shows them together in one Wallet sheet.
+    @MainActor private func addAllToWallet() async {
+        guard let result else { return }
+        busy = true; error = ""; defer { busy = false; busyLabel = "" }
+        var signed: [PKPass] = []
+        do {
+            for index in result.value.passes.indices {
+                busyLabel = "Preparing pass \(index + 1) of \(result.value.passes.count)…"
+                let payload = try result.value.singlePassText(at: index)
+                var thumbnail: [String: String]?
+                if let picture = pictures[index] { thumbnail = PosterImage.thumbnailFiles(from: picture) }
+                let data = try await PassclipService(server: server).signedPass(text: payload, timeZone: timeZone, thumbnail: thumbnail)
+                signed.append(try PKPass(data: data))
+                history.save(pass: result.value.passes[index], text: payload)
+            }
+            walletPasses = signed; showingWallet = true
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch { self.error = error.localizedDescription }
     }
 
@@ -486,7 +581,7 @@ struct ContentView: View {
                 thumbnail = files
             }
             let data = try await PassclipService(server: server).signedPass(text: payload, timeZone: timeZone, thumbnail: thumbnail)
-            walletPass = try PKPass(data: data); showingWallet = true
+            walletPasses = [try PKPass(data: data)]; showingWallet = true
             history.save(pass: result.value.passes[index], text: payload)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch { self.error = error.localizedDescription }

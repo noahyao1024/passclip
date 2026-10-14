@@ -2,11 +2,12 @@ import SwiftUI
 import PassKit
 
 struct WalletSheet: UIViewControllerRepresentable {
-    let pass: PKPass
+    /// One pass, or several added together in one sheet.
+    let passes: [PKPass]
     let onFinish: () -> Void
     func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish) }
     func makeUIViewController(context: Context) -> UIViewController {
-        guard let controller = PKAddPassesViewController(pass: pass) else { return UIViewController() }
+        guard let controller = PKAddPassesViewController(passes: passes) else { return UIViewController() }
         controller.delegate = context.coordinator
         return controller
     }

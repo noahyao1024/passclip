@@ -650,3 +650,14 @@ final class PageBreakTests: XCTestCase {
         XCTAssertNotEqual(top.0, bottom.0)
     }
 }
+
+final class BatchImportTests: XCTestCase {
+    func testOnlyMakesBatchesWhereTheModelRuns() async {
+        // Without Apple's model (the Simulator, or PASSCLIP_FAKE_AI unset), a batch reports that nothing was found
+        // instead of guessing; the app explains it needs Apple Intelligence.
+        let documents = [ReadDocument(text: "Ticket one"), ReadDocument(text: "Ticket two")]
+        if EmailReader.status.isReady { return }
+        do { _ = try await BatchImport.read(documents) { _, _ in }; XCTFail("Expected nothing found") }
+        catch { XCTAssertTrue(error is EmailReaderError) }
+    }
+}

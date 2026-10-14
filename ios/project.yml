@@ -68,8 +68,8 @@ targets:
           NSExtensionAttributes:
             NSExtensionActivationRule:
               NSExtensionActivationSupportsText: true
-              NSExtensionActivationSupportsFileWithMaxCount: 1
-              NSExtensionActivationSupportsImageWithMaxCount: 1
+              NSExtensionActivationSupportsFileWithMaxCount: 20
+              NSExtensionActivationSupportsImageWithMaxCount: 20
               NSExtensionActivationSupportsWebURLWithMaxCount: 1
     entitlements:
       path: Generated/Share.entitlements
