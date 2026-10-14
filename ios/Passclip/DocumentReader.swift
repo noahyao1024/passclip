@@ -107,17 +107,45 @@ enum DocumentReader {
         // A QR code is a drawing, so it isn't in the page's text; look at the page as a picture.
         let needsOCR = text.filter { $0.isLetter || $0.isNumber }.count < 80
         var recognized: [String] = []
+        var images: [UIImage] = []
         for page in pages {
             let size = page.bounds(for: .mediaBox).size
             let scale = 2_000 / max(size.width, size.height, 1)
             let image = page.thumbnail(of: CGSize(width: size.width * scale, height: size.height * scale), for: .mediaBox)
+            images.append(image)
             for code in (try? BarcodeReader.read(image)) ?? [] where seen.insert(code.id).inserted { codes.append(code) }
             if needsOCR, let found = try? recognizeText(in: image) { recognized.append(found) }
+        }
+        // A web page printed to PDF can split a code across a page break. If no page holds a whole code,
+        // look again at each page break: the bottom of one page joined to the top of the next.
+        if codes.isEmpty {
+            for index in images.indices.dropLast() {
+                guard let joined = pageBreak(images[index], images[index + 1]) else { continue }
+                for code in (try? BarcodeReader.read(joined)) ?? [] where seen.insert(code.id).inserted { codes.append(code) }
+            }
         }
         if needsOCR { text = recognized.joined(separator: "\n\n") }
         var result = try document(text: text, codes: codes, kind: "pdf")
         result.links = links
         return result
+    }
+
+    /// The bottom half of one page on top of the top half of the next, at the same width.
+    static func pageBreak(_ upper: UIImage, _ lower: UIImage) -> UIImage? {
+        guard let top = upper.cgImage, let bottom = lower.cgImage else { return nil }
+        let width = max(top.width, bottom.width)
+        let topPart = top.cropping(to: CGRect(x: 0, y: top.height / 2, width: top.width, height: top.height - top.height / 2))
+        let bottomPart = bottom.cropping(to: CGRect(x: 0, y: 0, width: bottom.width, height: bottom.height / 2))
+        guard let topPart, let bottomPart else { return nil }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let size = CGSize(width: width, height: topPart.height + bottomPart.height)
+        return UIGraphicsImageRenderer(size: size, format: format).image { context in
+            UIColor.white.setFill(); context.fill(CGRect(origin: .zero, size: size))
+            UIImage(cgImage: topPart).draw(in: CGRect(x: 0, y: 0, width: topPart.width, height: topPart.height))
+            UIImage(cgImage: bottomPart).draw(in: CGRect(x: 0, y: topPart.height, width: bottomPart.width, height: bottomPart.height))
+        }
     }
 
     private static func document(text: String, codes: [FoundCode], kind: String) throws -> ReadDocument {

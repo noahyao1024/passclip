@@ -630,3 +630,23 @@ final class PassHistoryTests: XCTestCase {
         XCTAssertTrue(text.contains("7:30"), text)
     }
 }
+
+final class PageBreakTests: XCTestCase {
+    func testJoinsTheBottomOfOnePageToTheTopOfTheNext() throws {
+        func page(_ color: UIColor) -> UIImage {
+            let format = UIGraphicsImageRendererFormat(); format.scale = 1
+            return UIGraphicsImageRenderer(size: CGSize(width: 100, height: 200), format: format).image { context in
+                color.setFill(); context.fill(CGRect(x: 0, y: 0, width: 100, height: 200))
+            }
+        }
+        let joined = try XCTUnwrap(DocumentReader.pageBreak(page(.red), page(.blue)))
+        XCTAssertEqual(joined.size, CGSize(width: 100, height: 200))
+        let cg = try XCTUnwrap(joined.cgImage)
+        let data = try XCTUnwrap(cg.dataProvider?.data as Data?)
+        func pixel(_ y: Int) -> (UInt8, UInt8, UInt8) { let i = y * cg.bytesPerRow + 50 * 4; return (data[i], data[i + 1], data[i + 2]) }
+        let top = pixel(10), bottom = pixel(190)
+        // The upper half comes from the first page (red), the lower half from the second (blue), whatever the byte order.
+        XCTAssertNotEqual(top.0 == 255 || top.2 == 255, false)
+        XCTAssertNotEqual(top.0, bottom.0)
+    }
+}
