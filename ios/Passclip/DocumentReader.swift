@@ -29,6 +29,8 @@ struct Incoming {
     var source = DocumentSource()
     var picture: Data?
     var problem = ""
+    /// Several documents shared or chosen at once, read one by one into passes (BatchImport).
+    var documents: [ReadDocument] = []
 
     init(text: String = "", problem: String = "") { self.text = text; self.problem = problem }
     init(_ document: ReadDocument) { text = document.text; codes = document.codes; links = document.links; source = document.source; picture = document.picture }
