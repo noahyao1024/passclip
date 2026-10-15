@@ -189,17 +189,21 @@ enum OnDeviceExtractor {
     private static let answerTokens = 1_100
 
     static func extract(from email: String, image: Data? = nil) async throws -> [ExtractedPass] {
-        // iOS 27's model can look at the ticket and think before answering. Both are used when this iPhone's model
-        // offers them; if that fails for any reason (a large picture can fill the model's context), read the text alone.
+        // iOS 27's model can look at the ticket and think before answering. Both are used when this iPhone's model offers
+        // them; if that fails for any reason (a large picture can fill the model's context), read the text alone.
+        // Built only with the iOS 27 SDK (Swift 6.4); older Xcode versions, like CI's, read the text alone.
+        #if compiler(>=6.4)
         if #available(iOS 27.0, *), let image, let picture = UIImage(data: image)?.cgImage {
             let model = SystemLanguageModel.default
             if model.capabilities.contains(.vision) {
                 if let found = try? await extractSeeing(email, picture: picture, model: model) { return found }
             }
         }
+        #endif
         return try await extractText(from: email)
     }
 
+    #if compiler(>=6.4)
     @available(iOS 27.0, *)
     private static func extractSeeing(_ email: String, picture: CGImage, model: SystemLanguageModel) async throws -> [ExtractedPass] {
         let fullInstructions = fullInstructions()
@@ -215,6 +219,7 @@ enum OnDeviceExtractor {
         }
         return response.content.passes.map(\.extracted)
     }
+    #endif
 
     private static func fullInstructions() -> String {
         let today = Date.now.formatted(.iso8601.year().month().day())
