@@ -22,6 +22,8 @@ struct ContentView: View {
     /// Event pictures the person chose, by pass number, and one a ticket page offered.
     @State private var pictures: [Int: UIImage] = [:]
     @State private var suggestedPicture: UIImage?
+    /// The shared screenshot or PDF page, shown to Apple Intelligence along with the text when it can see pictures.
+    @State private var documentImage: Data?
     /// Each pass's colors before a picture changed them, to put back if the picture is removed.
     @State private var savedStyles: [Int: JSONValue] = [:]
     @State private var calendarEvent: EKEvent?
@@ -444,7 +446,7 @@ struct ContentView: View {
         if readsEmails {
             busy = true; busyLabel = "Reading your ticket…"
             let sent = text
-            let context = ImportContext(source: source, links: linkChoices.filter(\.on).map(\.link), hasCodes: !suggestedCodes.isEmpty)
+            let context = ImportContext(source: source, links: linkChoices.filter(\.on).map(\.link), hasCodes: !suggestedCodes.isEmpty, image: documentImage)
             do {
                 let json = try await EmailReader.extract(from: sent, context: context)
                 // Editing while the model works must not replace the new text with a stale answer.
@@ -472,7 +474,7 @@ struct ContentView: View {
     }
 
     private func apply(_ document: ReadDocument) {
-        text = document.text; suggestedCodes = document.codes; source = document.source
+        text = document.text; suggestedCodes = document.codes; source = document.source; documentImage = document.pageImage
         suggestedPicture = document.picture.flatMap(UIImage.init(data:))
         linkChoices = document.links.enumerated().map { LinkChoice(link: $0.element, on: $0.offset == 0) }
     }
@@ -523,7 +525,7 @@ struct ContentView: View {
         if let style = response.value.passes.first?["style"] { result?.value.passes[index] = result!.value.passes[index].setting("style", to: style) }
     }
 
-    private func resetSource() { source = DocumentSource(); suggestedCodes = []; linkChoices = []; suggestedPicture = nil; batchCodes = [:] }
+    private func resetSource() { source = DocumentSource(); suggestedCodes = []; linkChoices = []; suggestedPicture = nil; batchCodes = [:]; documentImage = nil }
 
     @MainActor private func preview() async {
         busy = true; busyLabel = "Checking your pass…"; error = ""; defer { busy = false; busyLabel = "" }

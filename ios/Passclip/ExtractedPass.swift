@@ -47,6 +47,8 @@ struct ImportContext {
     var links: [FoundLink] = []
     /// A barcode was read from the document, so the "add it yourself" reminder isn't needed.
     var hasCodes = false
+    /// The ticket as a picture, for models that can look at it. Never sent anywhere; read on this iPhone.
+    var image: Data? = nil
 }
 
 /// Turns what the AI found into Passclip's import JSON (schema 1.1). The server still validates and
@@ -107,7 +109,7 @@ enum ImportJSONBuilder {
         add(&fields, "ticketNumber", clean(item.ticketNumber).flatMap { $0 == clean(item.confirmationCode) ? nil : String($0.prefix(60)) })
         add(&fields, "holderName", clean(item.holderName).map { $0.replacingOccurrences(of: #"(\s+[.,;:·]+)+$"#, with: "", options: .regularExpression) })
 
-        let start = localTime(item.start), end = localTime(item.end)
+        let start = localTime(item.start) ?? looseTime(item.start), end = localTime(item.end)
         // A ticket for a day without a time ("Valid on 2026-10-17"): the pass stays valid until the end of that day.
         let day = start == nil ? dayOnly(item.start) : nil
         if let day {
@@ -132,7 +134,10 @@ enum ImportJSONBuilder {
         add(&seat, "section", clean(item.seatSection))
         add(&seat, "row", clean(item.seatRow))
         add(&seat, "number", clean(item.seatNumber))
-        add(&seat, "entrance", clean(item.seatEntrance))
+        // The model sometimes repeats the venue as the entrance; only a real gate or door is kept.
+        add(&seat, "entrance", clean(item.seatEntrance).flatMap { entrance in
+            [item.venueName, item.venueCity, item.organization, item.title].compactMap(clean).contains { $0.localizedCaseInsensitiveContains(entrance) || entrance.localizedCaseInsensitiveContains($0) } ? nil : entrance
+        })
         add(&seat, "description", clean(item.seatCategory))
         if !seat.isEmpty { fields.append(("seat", .object(seat))) }
 
@@ -218,6 +223,28 @@ enum ImportJSONBuilder {
     }
 
     /// "2026-10-10T19:30" (or with seconds or an offset), only when it's a real date and time.
+    /// A date and a time the model wrote loosely, like "2026-10-17 7.30pm" or "2026-10-17 - 2026-10-17, 19:30":
+    /// the first date and the first time, as YYYY-MM-DDTHH:mm:00. Nil without both.
+    static func looseTime(_ value: String?) -> String? {
+        guard let text = clean(value),
+              let dateMatch = text.range(of: #"\d{4}-\d{2}-\d{2}"#, options: .regularExpression) else { return nil }
+        let date = String(text[dateMatch])
+        // Dates are taken out first, so their numbers aren't read as a time.
+        let rest = text.replacingOccurrences(of: #"\d{4}-\d{2}-\d{2}"#, with: " ", options: .regularExpression)
+        guard let regex = try? NSRegularExpression(pattern: #"(?<![\d.:])(\d{1,2})(?:[:.](\d{2}))?\s*([ap])?\.?\s*(m\b)?"#, options: .caseInsensitive) else { return nil }
+        for match in regex.matches(in: rest, range: NSRange(rest.startIndex..., in: rest)) {
+            func group(_ index: Int) -> String? { Range(match.range(at: index), in: rest).map { String(rest[$0]) } }
+            let minutes = group(2), half = group(3)?.lowercased()
+            // A bare number ("17") isn't a time; it needs minutes or am/pm.
+            guard var hour = group(1).flatMap(Int.init), minutes != nil || half != nil else { continue }
+            let minute = minutes.flatMap(Int.init) ?? 0
+            if let half { guard (1...12).contains(hour) else { continue }; hour = hour % 12 + (half == "p" ? 12 : 0) }
+            guard hour < 24, minute < 60 else { continue }
+            return localTime(String(format: "%@T%02d:%02d", date, hour, minute))
+        }
+        return nil
+    }
+
     /// "2026-10-17", or the last day of "2026-10-17 - 2026-10-18", when it is a real date.
     static func dayOnly(_ value: String?) -> String? {
         guard let text = clean(value), let regex = try? NSRegularExpression(pattern: #"^(\d{4})-(\d{2})-(\d{2})(\s*(-|–|to)\s*(\d{4})-(\d{2})-(\d{2}))?$"#),

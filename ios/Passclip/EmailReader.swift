@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -50,7 +51,7 @@ enum EmailReader {
             do {
                 // PDFs often hold Chinese characters in their Kangxi radical forms (⼗ for 十); they look the same but aren't.
                 let email = SourceCheck.cleanCJK(email)
-                let found = try await OnDeviceExtractor.extract(from: email)
+                let found = try await OnDeviceExtractor.extract(from: email, image: context.image)
                 // Every copied name and number must be in the text; see SourceCheck.
                 let checked = SourceCheck.apply(to: found, source: email)
                 guard let json = ImportJSONBuilder.json(from: checked.passes, context: context, extraWarnings: checked.warnings) else { throw EmailReaderError.nothingFound }
@@ -181,15 +182,53 @@ enum OnDeviceExtractor {
     - Never write barcode or QR code data.
     - One entry per ticket or travel leg. Ignore ads and legal text.
     - Words from a page's pictures (logos) may come first; an event's name is often there.
+    - A picture of the ticket may come with the text. Use it to see what belongs together, like a date and its label, and the event's logo. Copy values as they are written in the text.
     """
 
     /// Room kept for the answer, in tokens.
     private static let answerTokens = 1_100
 
-    static func extract(from email: String) async throws -> [ExtractedPass] {
-        let model = SystemLanguageModel.default
+    static func extract(from email: String, image: Data? = nil) async throws -> [ExtractedPass] {
+        // iOS 27's model can look at the ticket and think before answering. Both are used when this iPhone's model offers
+        // them; if that fails for any reason (a large picture can fill the model's context), read the text alone.
+        // Built only with the iOS 27 SDK (Swift 6.4); older Xcode versions, like CI's, read the text alone.
+        #if compiler(>=6.4)
+        if #available(iOS 27.0, *), let image, let picture = UIImage(data: image)?.cgImage {
+            let model = SystemLanguageModel.default
+            if model.capabilities.contains(.vision) {
+                if let found = try? await extractSeeing(email, picture: picture, model: model) { return found }
+            }
+        }
+        #endif
+        return try await extractText(from: email)
+    }
+
+    #if compiler(>=6.4)
+    @available(iOS 27.0, *)
+    private static func extractSeeing(_ email: String, picture: CGImage, model: SystemLanguageModel) async throws -> [ExtractedPass] {
+        let fullInstructions = fullInstructions()
+        // The picture takes room in the context too, so the text gets a smaller share.
+        let prompt = try await fitPrompt(for: email, instructions: fullInstructions, model: model, reserve: 1_500)
+        let session = LanguageModelSession(model: model, instructions: fullInstructions)
+        var options = GenerationOptions()
+        options.temperature = 0
+        let thinking = ContextOptions(includeSchemaInPrompt: true, reasoningLevel: model.capabilities.contains(.reasoning) ? .light : nil)
+        let response = try await session.respond(generating: GeneratedEmail.self, options: options, contextOptions: thinking) {
+            prompt
+            Attachment(picture).label("Picture of the ticket")
+        }
+        return response.content.passes.map(\.extracted)
+    }
+    #endif
+
+    private static func fullInstructions() -> String {
         let today = Date.now.formatted(.iso8601.year().month().day())
-        let fullInstructions = instructions + "\nWhen the event name is written in more than one language, put the first version in title and the version in Latin letters (English) in titleLatin.\nToday is \(today)."
+        return instructions + "\nWhen the event name is written in more than one language, put the first version in title and the version in Latin letters (English) in titleLatin.\nToday is \(today)."
+    }
+
+    static func extractText(from email: String) async throws -> [ExtractedPass] {
+        let model = SystemLanguageModel.default
+        let fullInstructions = fullInstructions()
         let prompt = try await fitPrompt(for: email, instructions: fullInstructions, model: model)
 
         let session = LanguageModelSession(model: model, instructions: fullInstructions)
@@ -200,8 +239,8 @@ enum OnDeviceExtractor {
     }
 
     /// Trims the email until instructions, answer format, email and answer all fit the model's context.
-    private static func fitPrompt(for email: String, instructions: String, model: SystemLanguageModel) async throws -> String {
-        let context = model.contextSize
+    private static func fitPrompt(for email: String, instructions: String, model: SystemLanguageModel, reserve: Int = 0) async throws -> String {
+        let context = model.contextSize - reserve
         // About two characters per token is safe for English and for Chinese, Japanese and Korean alike.
         var limit = max(1_200, (context - answerTokens - 600) * 2)
         guard #available(iOS 26.4, *) else { return prompt(EmailPreparer.prepare(email, maxCharacters: min(limit, 3_500))) }
