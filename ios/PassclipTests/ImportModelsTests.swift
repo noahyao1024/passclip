@@ -709,3 +709,20 @@ final class TicketDetailsTests: XCTestCase {
         XCTAssertFalse(json.contains(#""start""#))
     }
 }
+
+final class LooseDetailsTests: XCTestCase {
+    func testReadsDatesAndTimesWrittenLoosely() {
+        XCTAssertEqual(ImportJSONBuilder.looseTime("2026-10-17 7.30pm"), "2026-10-17T19:30:00")
+        XCTAssertEqual(ImportJSONBuilder.looseTime("2026-10-17 - 2026-10-17, 19:30"), "2026-10-17T19:30:00")
+        XCTAssertEqual(ImportJSONBuilder.looseTime("2026-10-17T7:30 PM"), "2026-10-17T19:30:00")
+        XCTAssertEqual(ImportJSONBuilder.looseTime("2026-10-17 12am"), "2026-10-17T00:00:00")
+        XCTAssertNil(ImportJSONBuilder.looseTime("2026-10-17 - 2026-10-18"))
+    }
+
+    func testDropsAnEntranceThatIsReallyTheVenue() throws {
+        let pass = ExtractedPass(type: "eventTicket", title: "Halloween Horror Nights", start: "2026-10-17T19:30", venueName: "Universal Studios Singapore", seatEntrance: "Universal Studios Singapore")
+        XCTAssertFalse(try XCTUnwrap(ImportJSONBuilder.json(from: [pass])).contains("entrance"))
+        let gate = ExtractedPass(type: "eventTicket", title: "Jazz Night", start: "2026-10-17T19:30", venueName: "Blue Lantern Hall", seatEntrance: "Gate 3")
+        XCTAssertTrue(try XCTUnwrap(ImportJSONBuilder.json(from: [gate])).contains("Gate 3"))
+    }
+}

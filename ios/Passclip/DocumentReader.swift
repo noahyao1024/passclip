@@ -19,6 +19,8 @@ struct ReadDocument {
     var source = DocumentSource()
     /// A picture of the event, like the preview image a ticket page declares. Offered for the pass.
     var picture: Data? = nil
+    /// The ticket as a small picture (JPEG), for Apple Intelligence models that can look at images (iOS 27).
+    var pageImage: Data? = nil
     /// A PDF holding several tickets, one code per page: each ticket on its own, read like a batch (BatchImport).
     var tickets: [ReadDocument] = []
 }
@@ -93,7 +95,9 @@ enum DocumentReader {
         if let image = UIImage(data: data) {
             let text = (try? recognizeText(in: image)) ?? ""
             let codes = (try? BarcodeReader.read(image)) ?? []
-            return try document(text: text, codes: codes, kind: "screenshot")
+            var result = try document(text: text, codes: codes, kind: "screenshot")
+            result.pageImage = modelPicture(image)
+            return result
         }
         if data.count <= maxTextBytes, let text = String(data: data, encoding: .utf8),
            !text.contains("\u{0}"), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -108,13 +112,17 @@ enum DocumentReader {
         // Links come from the PDF's own text and link areas, never from scanned text, which can misread a character.
         let links = LinkFinder.links(in: pageTexts.joined(separator: "\n\n"), also: pages.flatMap { page in page.annotations.compactMap { $0.url ?? ($0.action as? PDFActionURL)?.url } })
         var pageCodes: [[FoundCode]] = []
+        var pagePictures: [Data?] = []
         var seen = Set<String>()
         // A QR code is a drawing, so it isn't in the page's text; look at the page as a picture.
         let needsOCR = pageTexts.joined().filter { $0.isLetter || $0.isNumber }.count < 80
         for (index, page) in pages.enumerated() {
             autoreleasepool {
                 let image = render(page)
-                pageCodes.append(((try? BarcodeReader.read(image)) ?? []).filter { seen.insert($0.id).inserted })
+                let found = ((try? BarcodeReader.read(image)) ?? []).filter { seen.insert($0.id).inserted }
+                pageCodes.append(found)
+                // Kept small, and only for the first page and pages with a code: those are what the model looks at.
+                pagePictures.append(index == 0 || !found.isEmpty ? modelPicture(image) : nil)
                 // Scanned pages are read as pictures. Other pages can still have words only in a picture, like an
                 // event's name in its logo, so those words are added in front of the page's own text.
                 let seenText = (try? recognizeText(in: image)) ?? ""
@@ -134,7 +142,11 @@ enum DocumentReader {
         }
         var result = try document(text: pageTexts.joined(separator: "\n\n"), codes: codes, kind: "pdf")
         result.links = links
+        result.pageImage = pagePictures.first ?? nil
         result.tickets = tickets(pages: Array(zip(pageTexts, pageCodes)), kind: "pdf")
+        // Each ticket gets the picture of its own code page.
+        let codePictures = pageCodes.indices.filter { !pageCodes[$0].isEmpty }.map { pagePictures[$0] }
+        if codePictures.count == result.tickets.count { for index in result.tickets.indices { result.tickets[index].pageImage = codePictures[index] } }
         return result
     }
 
@@ -148,6 +160,16 @@ enum DocumentReader {
         }
         guard !extra.isEmpty else { return text }
         return "Words in the page's pictures, like logos: " + extra.joined(separator: " / ") + "\n\n" + text
+    }
+
+    /// A JPEG at most 1,280 pixels on its longer side: enough to read a ticket, small enough to keep many.
+    static func modelPicture(_ image: UIImage) -> Data? {
+        let longest = max(image.size.width * image.scale, image.size.height * image.scale)
+        guard longest > 0 else { return nil }
+        let factor = min(1, 1_280 / longest)
+        let size = CGSize(width: (image.size.width * image.scale * factor).rounded(), height: (image.size.height * image.scale * factor).rounded())
+        let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.opaque = true
+        return UIGraphicsImageRenderer(size: size, format: format).jpegData(withCompressionQuality: 0.8) { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
     }
 
     /// A page as a picture about 2,000 pixels on its longer side, sharp enough for small codes.

@@ -29,11 +29,21 @@ enum BatchImport {
         var skipped = 0
         for (index, document) in documents.enumerated() {
             await progress(index + 1, documents.count)
-            let context = ImportContext(source: document.source, links: [], hasCodes: !document.codes.isEmpty)
+            let context = ImportContext(source: document.source, links: [], hasCodes: !document.codes.isEmpty, image: document.pageImage)
             guard let json = try? await EmailReader.extract(from: document.text, context: context),
                   let value = try? JSONDecoder().decode(JSONValue.self, from: Data(json.utf8)),
-                  case .array(let found)? = value["passes"], !found.isEmpty else { skipped += 1; continue }
-            if found.count == 1, document.codes.count == 1 { codes[passes.count] = document.codes[0] }
+                  case .array(var found)? = value["passes"], !found.isEmpty else { skipped += 1; continue }
+            if found.count == 1, document.codes.count == 1 {
+                let code = document.codes[0]
+                codes[passes.count] = code
+                // Tickets in one order often differ only by their code. When the code's text is printed on the ticket
+                // as its ticket number (like a media code), show it, so the passes can be told apart.
+                if found[0]["ticketNumber"]?.string == nil, code.message.count <= 60,
+                   code.message.range(of: #"^[A-Za-z0-9-]{6,}$"#, options: .regularExpression) != nil, document.text.contains(code.message),
+                   found[0]["confirmationCode"]?.string != code.message {
+                    found[0] = found[0].setting("ticketNumber", to: .string(code.message))
+                }
+            }
             passes.append(contentsOf: found)
             if case .array(let notes)? = value["warnings"] { warnings.append(contentsOf: notes.compactMap(\.string)) }
         }
