@@ -327,12 +327,14 @@ struct ContentView: View {
     @ViewBuilder private func warnings(_ notices: [ImportNotice]) -> some View {
         let checks = notices.filter { $0.kind != "fix" }
         let fixes = notices.filter { $0.kind == "fix" }
+        // Read on this iPhone, the notes are Passclip's own, not another AI's.
+        let readHere = notices.contains { $0.message == ImportJSONBuilder.aiWarning }
         if !checks.isEmpty {
             Card {
                 Label("Check these details", systemImage: "exclamationmark.circle").font(.headline).foregroundStyle(Brand.ink)
                 // The first two, then the rest on request, so the pass stays the main thing on screen.
                 ForEach(checks.indices.prefix(showingAllChecks ? checks.count : 2), id: \.self) { i in
-                    Text((checks[i].from == "ai" ? "From your AI: " : "") + passPrefix(checks[i]) + checks[i].message).font(.subheadline).foregroundStyle(Brand.ink)
+                    Text((checks[i].from == "ai" && !readHere ? "From your AI: " : "") + passPrefix(checks[i]) + checks[i].message).font(.subheadline).foregroundStyle(Brand.ink)
                 }
                 if checks.count > 2 {
                     Button(showingAllChecks ? "Show fewer" : "Show \(checks.count - 2) more") { withAnimation { showingAllChecks.toggle() } }.font(.subheadline.weight(.semibold))

@@ -229,3 +229,10 @@ describe("estimated display limits", () => {
     expect(allDay.secondaryFields.map((field) => field.key)).toEqual(["venue"]);
   });
 });
+
+describe("day tickets", () => {
+  it("shows the valid day in the header when there is no start time", () => {
+    const layout = layoutPass({ type: "eventTicket", title: "Halloween Horror Nights 14", expires: "2026-10-17" } as Pass);
+    expect(layout.headerFields.map((field) => field.key)).toEqual(["valid"]);
+  });
+});

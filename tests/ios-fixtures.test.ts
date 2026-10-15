@@ -17,7 +17,7 @@ describe("JSON made by the iPhone app's email reader", () => {
     expect(Array.from(pass.title).length).toBeLessThanOrEqual(61);
     expect(pass.start).toBe("2026-10-10T19:30:00+08:00");
     expect(result.warnings.map((warning) => warning.message)).toEqual(expect.arrayContaining([
-      "Read by Apple Intelligence on this iPhone. Check every detail against your email.",
+      "Read by Apple Intelligence on this iPhone. Check every detail against your ticket.",
       "The barcode isn't included. Add it from a screenshot of your ticket.",
     ]));
   });
@@ -38,7 +38,7 @@ describe("JSON made from a PDF by the iPhone app", () => {
     const [pass] = result.value.passes;
     expect(Array.from(pass.title).length).toBeLessThanOrEqual(60);
     expect(pass.timeZone).toBe("Asia/Singapore");
-    expect(result.warnings.map((warning) => warning.message)).toEqual(["Read by Apple Intelligence on this iPhone. Check every detail against your email."]);
+    expect(result.warnings.map((warning) => warning.message)).toEqual(["Read by Apple Intelligence on this iPhone. Check every detail against your ticket."]);
   });
 
   it("puts the document name and the original link on the back, and the full title in the notes", () => {

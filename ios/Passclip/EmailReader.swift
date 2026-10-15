@@ -113,7 +113,7 @@ struct GeneratedEmail {
 struct GeneratedPass {
     @Guide(description: "eventTicket for concerts, shows, movies, sports and exhibitions; boardingPass for flights, trains, buses and ferries; storeCard for memberships and loyalty cards; coupon for offers; generic for anything else", .anyOf(["eventTicket", "boardingPass", "storeCard", "coupon", "generic"]))
     var type: String
-    @Guide(description: "Event name or route, copied from the email. If it is written in several languages, copy the first one only.")
+    @Guide(description: "Event name or route, copied from the email. For an event held at a park or venue, the event's own name (like a festival or show), not the venue's name. If it is written in several languages, copy the first one only.")
     var title: String
     @Guide(description: "The event name in Latin letters (English), copied from the email, only when the email also gives the name in another script such as Chinese. Empty otherwise.")
     var titleLatin: String?
@@ -123,9 +123,11 @@ struct GeneratedPass {
     var organization: String?
     @Guide(description: "Order, booking, confirmation, reference or transaction number")
     var confirmationCode: String?
+    @Guide(description: "The number of this one ticket, like a ticket, media or admission number, when it differs from the order number. Empty otherwise.")
+    var ticketNumber: String?
     @Guide(description: "Ticket holder or passenger name")
     var holderName: String?
-    @Guide(description: "Start or departure, local time at the place, written YYYY-MM-DDTHH:mm. Empty when the email gives no date or no time.")
+    @Guide(description: "Start or departure, local time at the place, written YYYY-MM-DDTHH:mm. When the date and the time are written apart, like 'Valid on 2026-10-17' and 'valid from 7.30pm', put them together. Only the date, YYYY-MM-DD, when the email gives no time at all. Empty when there is no date.")
     var start: String?
     @Guide(description: "End or arrival, same format. Usually empty.")
     var end: String?
@@ -158,7 +160,7 @@ struct GeneratedPass {
 
     var extracted: ExtractedPass {
         ExtractedPass(
-            type: type, title: title, titleLatin: titleLatin, shortTitle: shortTitle, organization: organization, confirmationCode: confirmationCode, holderName: holderName,
+            type: type, title: title, titleLatin: titleLatin, shortTitle: shortTitle, organization: organization, confirmationCode: confirmationCode, ticketNumber: ticketNumber, holderName: holderName,
             start: start, end: end, timeZone: timeZone, venueName: venueName, venueCity: venueCity, venueAddress: venueAddress,
             seatCategory: seatCategory, seatSection: seatSection, seatRow: seatRow, seatNumber: seatNumber, seatEntrance: seatEntrance,
             transitMode: transitMode, carrier: carrier, number: number, fromCode: fromCode, fromCity: fromCity,
@@ -178,6 +180,7 @@ enum OnDeviceExtractor {
     - Write times as local time at the place: YYYY-MM-DDTHH:mm.
     - Never write barcode or QR code data.
     - One entry per ticket or travel leg. Ignore ads and legal text.
+    - Words from a page's pictures (logos) may come first; an event's name is often there.
     """
 
     /// Room kept for the answer, in tokens.

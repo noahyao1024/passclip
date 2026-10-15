@@ -13,6 +13,7 @@ struct ExtractedPass: Equatable {
     var shortTitle: String?
     var organization: String?
     var confirmationCode: String?
+    var ticketNumber: String?
     var holderName: String?
     /// Local time at the place, like 2026-10-10T19:30.
     var start: String?
@@ -54,7 +55,7 @@ struct ImportContext {
 enum ImportJSONBuilder {
     static let passTypes: Set<String> = ["eventTicket", "boardingPass", "storeCard", "coupon", "generic"]
     static let transitModes: Set<String> = ["air", "train", "bus", "boat", "other"]
-    static let aiWarning = "Read by Apple Intelligence on this iPhone. Check every detail against your email."
+    static let aiWarning = "Read by Apple Intelligence on this iPhone. Check every detail against your ticket."
     static let barcodeWarning = "The barcode isn't included. Add it from a screenshot of your ticket."
 
     /// Returns nil when nothing usable was found.
@@ -103,10 +104,16 @@ enum ImportJSONBuilder {
         add(&fields, "subtitle", subtitle)
         add(&fields, "organization", organization)
         add(&fields, "confirmationCode", clean(item.confirmationCode))
+        add(&fields, "ticketNumber", clean(item.ticketNumber).flatMap { $0 == clean(item.confirmationCode) ? nil : String($0.prefix(60)) })
         add(&fields, "holderName", clean(item.holderName).map { $0.replacingOccurrences(of: #"(\s+[.,;:·]+)+$"#, with: "", options: .regularExpression) })
 
         let start = localTime(item.start), end = localTime(item.end)
-        if clean(item.start) != nil && start == nil { warnings.append("Couldn't read the date or time for “\(title)”, so it was left out.") }
+        // A ticket for a day without a time ("Valid on 2026-10-17"): the pass stays valid until the end of that day.
+        let day = start == nil ? dayOnly(item.start) : nil
+        if let day {
+            if type != "boardingPass" { add(&fields, "expires", day) }
+            warnings.append("Found the date but not the time for “\(title)”. To get a reminder on the day, tap Edit reply and add the time to start.")
+        } else if clean(item.start) != nil && start == nil { warnings.append("Couldn't read the date or time for “\(title)”, so it was left out.") }
         add(&fields, "start", start)
         add(&fields, "end", start == nil ? nil : end)
         // The place usually says the zone: "Singapore" is Asia/Singapore. Without it, the app asks.
@@ -211,6 +218,17 @@ enum ImportJSONBuilder {
     }
 
     /// "2026-10-10T19:30" (or with seconds or an offset), only when it's a real date and time.
+    /// "2026-10-17", or the last day of "2026-10-17 - 2026-10-18", when it is a real date.
+    static func dayOnly(_ value: String?) -> String? {
+        guard let text = clean(value), let regex = try? NSRegularExpression(pattern: #"^(\d{4})-(\d{2})-(\d{2})(\s*(-|–|to)\s*(\d{4})-(\d{2})-(\d{2}))?$"#),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) else { return nil }
+        let last = match.range(at: 6).location != NSNotFound ? 6 : 1
+        func number(_ group: Int) -> Int? { Range(match.range(at: group), in: text).flatMap { Int(text[$0]) } }
+        guard let year = number(last), let month = number(last + 1), let day = number(last + 2),
+              DateComponents(calendar: Calendar(identifier: .gregorian), year: year, month: month, day: day).isValidDate else { return nil }
+        return String(format: "%04d-%02d-%02d", year, month, day)
+    }
+
     static func localTime(_ value: String?) -> String? {
         guard var text = clean(value) else { return nil }
         // "2026-10-10 19:30" is the same moment with a space where the schema wants a T.
