@@ -22,8 +22,8 @@ final class ShareViewController: UIViewController {
                     if documents.count >= BatchImport.maxDocuments { break }
                 }
             }
-            // Several files become one batch; one file works as before.
-            if documents.count == 1 { incoming = Incoming(documents[0]) }
+            // Several files, or one PDF with several tickets, become one batch; one ticket works as before.
+            if documents.count == 1 { incoming = Incoming(documents[0]); if documents[0].tickets.count > 1 { incoming.documents = documents } }
             else if documents.count > 1 { incoming = Incoming(); incoming.documents = documents }
             loading.willMove(toParent: nil); loading.view.removeFromSuperview(); loading.removeFromParent()
             if incoming.text.utf8.count > 256 * 1024 { incoming.text = "" }

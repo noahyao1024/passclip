@@ -661,3 +661,30 @@ final class BatchImportTests: XCTestCase {
         catch { XCTAssertTrue(error is EmailReaderError) }
     }
 }
+
+final class MultiTicketPDFTests: XCTestCase {
+    private let one = FoundCode(format: "qr", message: "T-1"), two = FoundCode(format: "qr", message: "T-2")
+
+    func testSplitsOneTicketPerCodePage() {
+        let tickets = DocumentReader.tickets(pages: [("Jazz Night, seat F12", [one]), ("Jazz Night, seat F13", [two]), ("Terms and conditions", [])], kind: "pdf")
+        XCTAssertEqual(tickets.map(\.text), ["Jazz Night, seat F12", "Jazz Night, seat F13"])
+        XCTAssertEqual(tickets.map(\.codes), [[one], [two]])
+    }
+
+    func testDetailsPageGoesWithTheCodeAfterIt() {
+        let tickets = DocumentReader.tickets(pages: [("Seat F12", []), ("", [one]), ("Seat F13", []), ("", [two])], kind: "pdf")
+        XCTAssertEqual(tickets.map(\.text), ["Seat F12", "Seat F13"])
+    }
+
+    func testKeepsOneDocumentWhenItCantSplitSafely() {
+        // One ticket, or two codes on one page: the person matches the codes themselves.
+        XCTAssertTrue(DocumentReader.tickets(pages: [("Seat F12", [one]), ("Terms", [])], kind: "pdf").isEmpty)
+        XCTAssertTrue(DocumentReader.tickets(pages: [("Seats F12 and F13", [one, two]), ("Seat F14", [FoundCode(format: "qr", message: "T-3")])], kind: "pdf").isEmpty)
+    }
+
+    func testBatchReadsEachTicketOfAPDF() {
+        var pdf = ReadDocument(text: "both")
+        pdf.tickets = [ReadDocument(text: "a", codes: [one]), ReadDocument(text: "b", codes: [two])]
+        XCTAssertEqual(BatchImport.expand([pdf, ReadDocument(text: "c")]).map(\.text), ["a", "b", "c"])
+    }
+}

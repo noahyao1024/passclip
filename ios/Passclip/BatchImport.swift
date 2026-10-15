@@ -12,15 +12,23 @@ enum BatchImport {
         var codes: [Int: FoundCode]
         /// Documents with no ticket in them.
         var skipped: Int
+        /// How many documents were read, counting each ticket of a PDF that holds several.
+        var total: Int
+    }
+
+    /// The documents to read, with a PDF holding several tickets split into one document per ticket.
+    static func expand(_ documents: [ReadDocument]) -> [ReadDocument] {
+        Array(documents.flatMap { $0.tickets.count > 1 ? $0.tickets : [$0] }.prefix(maxDocuments))
     }
 
     static func read(_ documents: [ReadDocument], progress: @MainActor (Int, Int) -> Void) async throws -> Outcome {
+        let documents = expand(documents)
         var passes: [JSONValue] = []
         var warnings: [String] = []
         var codes: [Int: FoundCode] = [:]
         var skipped = 0
-        for (index, document) in documents.prefix(maxDocuments).enumerated() {
-            await progress(index + 1, min(documents.count, maxDocuments))
+        for (index, document) in documents.enumerated() {
+            await progress(index + 1, documents.count)
             let context = ImportContext(source: document.source, links: [], hasCodes: !document.codes.isEmpty)
             guard let json = try? await EmailReader.extract(from: document.text, context: context),
                   let value = try? JSONDecoder().decode(JSONValue.self, from: Data(json.utf8)),
@@ -33,10 +41,10 @@ enum BatchImport {
         var seen = Set<String>()
         let combined = JSONValue.object([
             "schemaVersion": .string("1.1"),
-            "source": .object(["kind": .string("other"), "subject": .string("\(documents.count) documents")]),
+            "source": .object(["kind": .string("other"), "subject": .string("\(documents.count) tickets")]),
             "passes": .array(passes),
             "warnings": .array(warnings.filter { seen.insert($0).inserted }.map(JSONValue.string)),
         ])
-        return Outcome(json: String(decoding: try JSONEncoder().encode(combined), as: UTF8.self), codes: codes, skipped: skipped)
+        return Outcome(json: String(decoding: try JSONEncoder().encode(combined), as: UTF8.self), codes: codes, skipped: skipped, total: documents.count)
     }
 }
