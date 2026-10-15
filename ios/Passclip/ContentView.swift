@@ -407,6 +407,8 @@ struct ContentView: View {
     @MainActor private func makeBatch(_ documents: [ReadDocument]) async {
         guard !documents.isEmpty else { error = "Passclip couldn't read these files. Choose PDFs or screenshots of your tickets."; return }
         guard reader.isReady else {
+            // One PDF with several tickets still opens as one document; the person matches each code to its pass.
+            if documents.count == 1 { apply(documents[0]); return }
             error = "Reading several tickets at once needs Apple Intelligence on this iPhone. Choose them one at a time and use the AI-chat steps."
             return
         }
@@ -418,14 +420,17 @@ struct ContentView: View {
             batchCodes = outcome.codes
             busy = false
             await preview()
-            if outcome.skipped > 0 { notice = [notice, "\(outcome.skipped) of \(documents.count) files had no ticket Passclip could read."].filter { !$0.isEmpty }.joined(separator: " ") }
+            if outcome.skipped > 0 { notice = [notice, "\(outcome.skipped) of \(outcome.total) pages or files had no ticket Passclip could read."].filter { !$0.isEmpty }.joined(separator: " ") }
         } catch { self.error = error.localizedDescription }
     }
 
     @MainActor private func openDocument(_ data: Data, name: String?) async {
         busy = true; busyLabel = "Reading your document…"; error = ""; defer { busy = false; busyLabel = "" }
-        do { apply(try await DocumentReader.read(data, name: name)) }
-        catch { self.error = error.localizedDescription }
+        do {
+            let document = try await DocumentReader.read(data, name: name)
+            // A PDF with several tickets, each with its own code: one pass per ticket, each with its own code.
+            if document.tickets.count > 1 && reader.isReady { busy = false; await makeBatch([document]) } else { apply(document) }
+        } catch { self.error = error.localizedDescription }
     }
 
     /// A pasted link is opened first, then the text is read on this iPhone. An AI reply (JSON) goes straight to the preview.

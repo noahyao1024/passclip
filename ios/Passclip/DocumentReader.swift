@@ -19,6 +19,8 @@ struct ReadDocument {
     var source = DocumentSource()
     /// A picture of the event, like the preview image a ticket page declares. Offered for the pass.
     var picture: Data? = nil
+    /// A PDF holding several tickets, one code per page: each ticket on its own, read like a batch (BatchImport).
+    var tickets: [ReadDocument] = []
 }
 
 /// What the screen starts with when something was shared to Passclip or opened in it.
@@ -59,13 +61,14 @@ enum SharedInput {
 /// bytes, never from its name, so a PDF saved without ".pdf" still works. Nothing is uploaded.
 enum DocumentReader {
     static let maxBytes = 25 * 1024 * 1024
-    private static let maxPages = 6
+    private static let maxPages = 20
     private static let maxTextBytes = 256 * 1024
 
     static func read(_ data: Data, name: String? = nil) async throws -> ReadDocument {
         guard data.count <= maxBytes else { throw DocumentError.tooLarge }
         var document = try await Task.detached(priority: .userInitiated) { try readNow(data) }.value
         document.source.name = cleanName(name)
+        for index in document.tickets.indices { document.tickets[index].source.name = document.source.name }
         return document
     }
 
@@ -101,35 +104,62 @@ enum DocumentReader {
 
     private static func read(_ pdf: PDFDocument) throws -> ReadDocument {
         let pages = (0..<min(pdf.pageCount, maxPages)).compactMap { pdf.page(at: $0) }
-        var text = pages.compactMap(\.string).joined(separator: "\n\n")
+        var pageTexts = pages.map { $0.string ?? "" }
         // Links come from the PDF's own text and link areas, never from scanned text, which can misread a character.
-        let links = LinkFinder.links(in: text, also: pages.flatMap { page in page.annotations.compactMap { $0.url ?? ($0.action as? PDFActionURL)?.url } })
-        var codes: [FoundCode] = []
+        let links = LinkFinder.links(in: pageTexts.joined(separator: "\n\n"), also: pages.flatMap { page in page.annotations.compactMap { $0.url ?? ($0.action as? PDFActionURL)?.url } })
+        var pageCodes: [[FoundCode]] = []
         var seen = Set<String>()
         // A QR code is a drawing, so it isn't in the page's text; look at the page as a picture.
-        let needsOCR = text.filter { $0.isLetter || $0.isNumber }.count < 80
-        var recognized: [String] = []
-        var images: [UIImage] = []
-        for page in pages {
-            let size = page.bounds(for: .mediaBox).size
-            let scale = 2_000 / max(size.width, size.height, 1)
-            let image = page.thumbnail(of: CGSize(width: size.width * scale, height: size.height * scale), for: .mediaBox)
-            images.append(image)
-            for code in (try? BarcodeReader.read(image)) ?? [] where seen.insert(code.id).inserted { codes.append(code) }
-            if needsOCR, let found = try? recognizeText(in: image) { recognized.append(found) }
+        let needsOCR = pageTexts.joined().filter { $0.isLetter || $0.isNumber }.count < 80
+        for (index, page) in pages.enumerated() {
+            autoreleasepool {
+                let image = render(page)
+                pageCodes.append(((try? BarcodeReader.read(image)) ?? []).filter { seen.insert($0.id).inserted })
+                if needsOCR { pageTexts[index] = (try? recognizeText(in: image)) ?? "" }
+            }
         }
+        var codes = pageCodes.flatMap { $0 }
         // A web page printed to PDF can split a code across a page break. If no page holds a whole code,
         // look again at each page break: the bottom of one page joined to the top of the next.
         if codes.isEmpty {
-            for index in images.indices.dropLast() {
-                guard let joined = pageBreak(images[index], images[index + 1]) else { continue }
-                for code in (try? BarcodeReader.read(joined)) ?? [] where seen.insert(code.id).inserted { codes.append(code) }
+            for index in pages.indices.dropLast() {
+                autoreleasepool {
+                    guard let joined = pageBreak(render(pages[index]), render(pages[index + 1])) else { return }
+                    for code in (try? BarcodeReader.read(joined)) ?? [] where seen.insert(code.id).inserted { codes.append(code) }
+                }
             }
         }
-        if needsOCR { text = recognized.joined(separator: "\n\n") }
-        var result = try document(text: text, codes: codes, kind: "pdf")
+        var result = try document(text: pageTexts.joined(separator: "\n\n"), codes: codes, kind: "pdf")
         result.links = links
+        result.tickets = tickets(pages: Array(zip(pageTexts, pageCodes)), kind: "pdf")
         return result
+    }
+
+    /// A page as a picture about 2,000 pixels on its longer side, sharp enough for small codes.
+    private static func render(_ page: PDFPage) -> UIImage {
+        let size = page.bounds(for: .mediaBox).size
+        let scale = 2_000 / max(size.width, size.height, 1)
+        return page.thumbnail(of: CGSize(width: size.width * scale, height: size.height * scale), for: .mediaBox)
+    }
+
+    /// Splits a PDF into tickets when it holds several, each page with its own single code, like an e-ticket PDF for
+    /// a group. Pages without a code (the event details before a code page) go with the next code page; pages after
+    /// the last code (terms and conditions) are left out. A page with more than one code can't be split safely, so
+    /// then the PDF stays one document and the person matches the codes to the passes.
+    static func tickets(pages: [(text: String, codes: [FoundCode])], kind: String) -> [ReadDocument] {
+        let codePages = pages.filter { !$0.codes.isEmpty }
+        guard codePages.count > 1, codePages.allSatisfy({ $0.codes.count == 1 }) else { return [] }
+        var tickets: [ReadDocument] = []
+        var waiting: [String] = []
+        for page in pages {
+            waiting.append(page.text)
+            guard let code = page.codes.first else { continue }
+            let text = waiting.joined(separator: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
+            waiting = []
+            guard !text.isEmpty else { return [] }
+            tickets.append(ReadDocument(text: String(text.prefix(maxTextBytes / 4)), codes: [code], source: DocumentSource(kind: kind)))
+        }
+        return tickets
     }
 
     /// The bottom half of one page on top of the top half of the next, at the same width.
