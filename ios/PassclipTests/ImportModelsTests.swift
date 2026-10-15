@@ -688,3 +688,24 @@ final class MultiTicketPDFTests: XCTestCase {
         XCTAssertEqual(BatchImport.expand([pdf, ReadDocument(text: "c")]).map(\.text), ["a", "b", "c"])
     }
 }
+
+final class TicketDetailsTests: XCTestCase {
+    func testAddsWordsOnlyInPictures() {
+        let page = "Universal Studios Singapore\nORDER NO: DKDQ9DBAVU\nMedia Code: < >\n1S7GGAZ62X8QB1"
+        let seen = "HALLOWEEN\nHORROR NIGHTS 14\nUniversal Studios Singapore\nMedia Code: <1S7GGAZ62X8QB1>"
+        let combined = DocumentReader.withPictureWords(seen, text: page)
+        XCTAssertTrue(combined.hasPrefix("Words in the page's pictures, like logos: HALLOWEEN / HORROR NIGHTS 14\n\n"))
+        XCTAssertEqual(DocumentReader.withPictureWords("ORDER NO: DKDQ9DBAVU", text: page), page)
+    }
+
+    func testADayWithoutATimeBecomesTheLastValidDay() throws {
+        XCTAssertEqual(ImportJSONBuilder.dayOnly("2026-10-17 - 2026-10-18"), "2026-10-18")
+        XCTAssertEqual(ImportJSONBuilder.dayOnly("2026-10-17"), "2026-10-17")
+        XCTAssertNil(ImportJSONBuilder.dayOnly("2026-02-30"))
+        let pass = ExtractedPass(type: "eventTicket", title: "Halloween Horror Nights 14", confirmationCode: "DKDQ9DBAVU", ticketNumber: "1S7GGAZ62X8QB1", start: "2026-10-17")
+        let json = try XCTUnwrap(ImportJSONBuilder.json(from: [pass]))
+        XCTAssertTrue(json.contains(#""expires":"2026-10-17""#) || json.contains(#""expires": "2026-10-17""#), json)
+        XCTAssertTrue(json.contains("1S7GGAZ62X8QB1"))
+        XCTAssertFalse(json.contains(#""start""#))
+    }
+}

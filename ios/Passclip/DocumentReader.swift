@@ -115,7 +115,10 @@ enum DocumentReader {
             autoreleasepool {
                 let image = render(page)
                 pageCodes.append(((try? BarcodeReader.read(image)) ?? []).filter { seen.insert($0.id).inserted })
-                if needsOCR { pageTexts[index] = (try? recognizeText(in: image)) ?? "" }
+                // Scanned pages are read as pictures. Other pages can still have words only in a picture, like an
+                // event's name in its logo, so those words are added in front of the page's own text.
+                let seenText = (try? recognizeText(in: image)) ?? ""
+                pageTexts[index] = needsOCR ? seenText : withPictureWords(seenText, text: pageTexts[index])
             }
         }
         var codes = pageCodes.flatMap { $0 }
@@ -133,6 +136,18 @@ enum DocumentReader {
         result.links = links
         result.tickets = tickets(pages: Array(zip(pageTexts, pageCodes)), kind: "pdf")
         return result
+    }
+
+    /// The page's text, with the lines that appear only in its pictures (logos, banners) in front.
+    static func withPictureWords(_ seen: String, text: String) -> String {
+        func key(_ line: String) -> String { String(line.lowercased().filter { $0.isLetter || $0.isNumber }) }
+        let pageKey = key(text)
+        let extra = seen.split(separator: "\n").map(String.init).filter { line in
+            let lineKey = key(line)
+            return lineKey.count >= 3 && !pageKey.contains(lineKey)
+        }
+        guard !extra.isEmpty else { return text }
+        return "Words in the page's pictures, like logos: " + extra.joined(separator: " / ") + "\n\n" + text
     }
 
     /// A page as a picture about 2,000 pixels on its longer side, sharp enough for small codes.

@@ -120,7 +120,8 @@ export function layoutPass(pass: Pass, options: LayoutOptions = {}): PassLayout 
   switch (pass.type) {
     case "eventTicket":
       // Date and time sit in the header, so they stay visible when the pass is stacked in Wallet.
-      front("headerFields", date("date", "Date", pass.start, SHORT), pass.start?.includes("T") ? date("time", "Time", pass.start, NONE, SHORT) : undefined);
+      // A day ticket without a start time ("Valid on 17 Oct") shows the day it is valid.
+      front("headerFields", pass.start ? date("date", "Date", pass.start, SHORT) : date("valid", "Valid on", pass.expires, SHORT), pass.start?.includes("T") ? date("time", "Time", pass.start, NONE, SHORT) : undefined);
       front("primaryFields", text("title", pass.subtitle ?? "Event", pass.title));
       // A venue name is long. Next to another field, Wallet runs the two together, so it gets a row to itself.
       front("secondaryFields", text("venue", "Venue", pass.venue?.name));
