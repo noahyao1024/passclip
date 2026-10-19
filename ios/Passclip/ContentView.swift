@@ -39,6 +39,8 @@ struct ContentView: View {
     @State private var showingWallet = false
     @FocusState private var editing: Bool
     @Environment(\.scenePhase) private var scenePhase
+    /// Regular on a wide screen, like iPhone Duo's inner display: passes go side by side.
+    @Environment(\.horizontalSizeClass) private var widthClass
     private let onClose: (() -> Void)?
     private let startOnAppear: Bool
     /// Several files shared at once from the share sheet.
@@ -92,6 +94,10 @@ struct ContentView: View {
                     }
                 }
                 .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 24)
+                // On a wide screen (iPhone Duo open, or landscape) the steps keep a readable width, and passes get
+                // room for two columns. Nothing changes on a regular iPhone in portrait.
+                .frame(maxWidth: result == nil ? 640 : 960)
+                .frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
             .background(Brand.paper.ignoresSafeArea())
@@ -294,7 +300,17 @@ struct ContentView: View {
             }
         }
         if !notice.isEmpty { Label(notice, systemImage: "checkmark.circle.fill").font(.subheadline).foregroundStyle(Brand.signal) }
-        ForEach(result.value.passes.indices, id: \.self) { index in
+        if widthClass == .regular && result.value.passes.count > 1 {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 320, maximum: 460), spacing: 20, alignment: .top)], alignment: .center, spacing: 20) {
+                ForEach(result.value.passes.indices, id: \.self) { passCard(result, at: $0) }
+            }
+        } else {
+            ForEach(result.value.passes.indices, id: \.self) { passCard(result, at: $0) }
+        }
+    }
+
+    /// One pass with its actions. Never wider than a pass in Wallet, so it keeps its shape on a wide screen.
+    private func passCard(_ result: ImportResponse, at index: Int) -> some View {
             VStack(alignment: .leading, spacing: 12) {
                 if result.value.passes.count > 1 { Text("Pass \(index + 1)").font(.footnote.weight(.semibold)).foregroundStyle(Brand.muted) }
                 NativePassPreview(pass: result.value.passes[index], layout: result.layouts[index], artwork: result.artwork(at: index), picture: pictures[index])
@@ -323,7 +339,8 @@ struct ContentView: View {
                 }
             }
             .padding(.bottom, 8)
-        }
+            .frame(maxWidth: 460)
+            .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder private func warnings(_ notices: [ImportNotice]) -> some View {
