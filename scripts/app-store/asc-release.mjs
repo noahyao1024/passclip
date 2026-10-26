@@ -1,6 +1,9 @@
 // Releases a new App Store version of Passclip after 1.0, one step at a time:
 //   node asc-release.mjs create 1.1                  create the version (or find it), release automatically after approval
 //   node asc-release.mjs whatsnew 1.1 <file>          set "What's New" for every localization from a text file
+//   node asc-release.mjs metadata 1.1 <file>          set the name, subtitle, keywords and promotional text from metadata/<locale>.json;
+//                                                     a new locale is added (give it a description too). Checks the file first
+//   node asc-release.mjs check <file>                 check a metadata file's lengths and repeated words without sending it
 //   node asc-release.mjs build 1.1 <build version>    attach a processed build
 //   node asc-release.mjs review 1.1                   copy the App Review contact and notes from the live version
 //   node asc-release.mjs submit 1.1                   submit the version for review
@@ -8,6 +11,7 @@
 // Needs ASC_KEY_ID and ASC_ISSUER_ID. Never prints the key or token.
 import { readFileSync } from "node:fs";
 import { api } from "./asc-lib.mjs";
+import { checkListing, readListing } from "./metadata.mjs";
 
 const APP = "6819692153";
 const [command, versionString, arg] = process.argv.slice(2);
@@ -37,6 +41,42 @@ async function whatsNew(name, file) {
     const sets = await api("GET", `/v1/appStoreVersionLocalizations/${loc.id}/appScreenshotSets`);
     console.log("what's new set for", loc.attributes.locale, "| screenshot sets:", sets.data.map((s) => s.attributes.screenshotDisplayType).join(", ") || "none");
   }
+}
+
+// App infos and versions that App Store Connect still lets you change.
+const editable = ["PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED", "METADATA_REJECTED"];
+const pick = (object, keys) => Object.fromEntries(keys.filter((k) => object[k] !== undefined).map((k) => [k, object[k]]));
+
+function check(file) {
+  const { locale, listing } = readListing(file);
+  const problems = checkListing(listing);
+  if (problems.length) throw new Error(`${locale}:\n${problems.map((p) => `  ${p}`).join("\n")}`);
+  return { locale, listing };
+}
+
+// Changes one localization, or adds it with the primary language's links. Prints each field before and after.
+async function upsert(type, existing, locale, attributes, primary, links, parent) {
+  const current = existing.find((l) => l.attributes.locale === locale);
+  for (const [k, v] of Object.entries(attributes)) console.log(`${locale} ${k}: ${JSON.stringify(current?.attributes[k] ?? null)} -> ${JSON.stringify(v)}`);
+  if (current) return api("PATCH", `/v1/${type}/${current.id}`, { data: { type, id: current.id, attributes } });
+  const copied = pick(existing.find((l) => l.attributes.locale === primary)?.attributes ?? {}, links);
+  return api("POST", `/v1/${type}`, { data: { type, attributes: { locale, ...copied, ...attributes }, relationships: parent } });
+}
+
+async function metadata(name, file) {
+  const { locale, listing } = check(file);
+  const v = await version(name);
+  if (!editable.includes(v.attributes.appStoreState)) throw new Error(`version ${name} is ${v.attributes.appStoreState} and can't be changed`);
+  // Name and subtitle belong to the app info that goes out with this version, not the live one.
+  const infos = (await api("GET", `/v1/apps/${APP}/appInfos`)).data;
+  const info = infos.find((i) => editable.includes(i.attributes.state ?? i.attributes.appStoreState));
+  if (!info) throw new Error("no app info is open for changes; run create first");
+  const { primaryLocale } = (await api("GET", `/v1/apps/${APP}?fields[apps]=primaryLocale`)).data.attributes;
+  const infoLocs = (await api("GET", `/v1/appInfos/${info.id}/appInfoLocalizations`)).data;
+  await upsert("appInfoLocalizations", infoLocs, locale, pick(listing, ["name", "subtitle"]), primaryLocale, ["privacyPolicyUrl"], { appInfo: { data: { type: "appInfos", id: info.id } } });
+  const versionLocs = (await api("GET", `/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations`)).data;
+  await upsert("appStoreVersionLocalizations", versionLocs, locale, pick(listing, ["keywords", "promotionalText", "description"]), primaryLocale, ["supportUrl", "marketingUrl"], { appStoreVersion: { data: { type: "appStoreVersions", id: v.id } } });
+  console.log("metadata set for", locale, "on", name);
 }
 
 async function build(name, buildVersion) {
@@ -74,6 +114,6 @@ async function status() {
   for (const v of await versions()) console.log(v.attributes.versionString, v.attributes.appStoreState, v.attributes.releaseType);
 }
 
-const commands = { create: () => create(versionString), whatsnew: () => whatsNew(versionString, arg), build: () => build(versionString, arg), review: () => review(versionString), submit: () => submit(versionString), status };
-if (!commands[command]) { console.log("usage: create <v> | whatsnew <v> <file> | build <v> <build> | review <v> | submit <v> | status"); process.exit(1); }
+const commands = { create: () => create(versionString), whatsnew: () => whatsNew(versionString, arg), metadata: () => metadata(versionString, arg), check: async () => console.log(check(versionString).locale, "is ready"), build: () => build(versionString, arg), review: () => review(versionString), submit: () => submit(versionString), status };
+if (!commands[command]) { console.log("usage: create <v> | whatsnew <v> <file> | metadata <v> <file> | check <file> | build <v> <build> | review <v> | submit <v> | status"); process.exit(1); }
 await commands[command]().catch((error) => { console.error(error.message); process.exit(1); });

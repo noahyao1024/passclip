@@ -726,3 +726,13 @@ final class LooseDetailsTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(ImportJSONBuilder.json(from: [gate])).contains("Gate 3"))
     }
 }
+
+final class ReviewPromptTests: XCTestCase {
+    func testAsksForARatingAfterAFewPassesOncePerVersion() {
+        XCTAssertFalse(ReviewPrompt.shouldAsk(passesMade: 1, version: "1.2", lastAskedVersion: ""))
+        XCTAssertTrue(ReviewPrompt.shouldAsk(passesMade: 2, version: "1.2", lastAskedVersion: ""))
+        XCTAssertFalse(ReviewPrompt.shouldAsk(passesMade: 5, version: "1.2", lastAskedVersion: "1.2"))
+        XCTAssertTrue(ReviewPrompt.shouldAsk(passesMade: 5, version: "1.3", lastAskedVersion: "1.2"))
+        XCTAssertFalse(ReviewPrompt.shouldAsk(passesMade: 5, version: "", lastAskedVersion: ""))
+    }
+}
