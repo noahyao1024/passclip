@@ -1,6 +1,7 @@
 // Releases a new App Store version of Passclip after 1.0, one step at a time:
 //   node asc-release.mjs create 1.1                  create the version (or find it), release automatically after approval
-//   node asc-release.mjs whatsnew 1.1 <file>          set "What's New" for every localization from a text file
+//   node asc-release.mjs whatsnew 1.1 <file>          set "What's New" for every localization from a text file,
+//                                                     or from <folder>/<locale>.txt, one per language
 //   node asc-release.mjs metadata 1.1 <file>          set the name, subtitle, keywords and promotional text from metadata/<locale>.json;
 //                                                     a new locale is added (give it a description too). Checks the file first
 //   node asc-release.mjs check <file>                 check a metadata file's lengths and repeated words without sending it
@@ -9,7 +10,7 @@
 //   node asc-release.mjs submit 1.1                   submit the version for review
 //   node asc-release.mjs status                       list versions and their states
 // Needs ASC_KEY_ID and ASC_ISSUER_ID. Never prints the key or token.
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { api } from "./asc-lib.mjs";
 import { checkListing, readListing } from "./metadata.mjs";
 
@@ -33,11 +34,11 @@ async function create(name) {
 }
 
 async function whatsNew(name, file) {
-  const text = readFileSync(file, "utf8").trim();
+  const perLocale = statSync(file).isDirectory();
   const v = await version(name);
   const locs = await api("GET", `/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations`);
   for (const loc of locs.data) {
-    await api("PATCH", `/v1/appStoreVersionLocalizations/${loc.id}`, { data: { type: "appStoreVersionLocalizations", id: loc.id, attributes: { whatsNew: text } } });
+    await api("PATCH", `/v1/appStoreVersionLocalizations/${loc.id}`, { data: { type: "appStoreVersionLocalizations", id: loc.id, attributes: { whatsNew: readFileSync(perLocale ? `${file}/${loc.attributes.locale}.txt` : file, "utf8").trim() } } });
     const sets = await api("GET", `/v1/appStoreVersionLocalizations/${loc.id}/appScreenshotSets`);
     console.log("what's new set for", loc.attributes.locale, "| screenshot sets:", sets.data.map((s) => s.attributes.screenshotDisplayType).join(", ") || "none");
   }
