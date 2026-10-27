@@ -2,6 +2,7 @@ import SwiftUI
 import EventKit
 import PassKit
 import PhotosUI
+import StoreKit
 import UniformTypeIdentifiers
 
 struct ContentView: View {
@@ -39,6 +40,8 @@ struct ContentView: View {
     @State private var showingWallet = false
     @FocusState private var editing: Bool
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.requestReview) private var requestReview
+    @AppStorage("reviewAskedVersion") private var reviewAskedVersion = ""
     /// Regular on a wide screen, like iPhone Duo's inner display: passes go side by side.
     @Environment(\.horizontalSizeClass) private var widthClass
     private let onClose: (() -> Void)?
@@ -116,7 +119,7 @@ struct ContentView: View {
             .sheet(isPresented: Binding(get: { onClose == nil && !seenOnboarding && !startOnAppear }, set: { if !$0 { seenOnboarding = true } })) {
                 OnboardingSheet { seenOnboarding = true }
             }
-            .sheet(isPresented: $showingWallet) { if !walletPasses.isEmpty { WalletSheet(passes: walletPasses) { showingWallet = false; walletPasses = [] } } }
+            .sheet(isPresented: $showingWallet, onDismiss: askForReview) { if !walletPasses.isEmpty { WalletSheet(passes: walletPasses) { showingWallet = false; walletPasses = [] } } }
             .onChange(of: photoItems) { _, items in if !items.isEmpty { Task { await openPhotos(items) } } }
             .task {
                 if !startingDocuments.isEmpty { await makeBatch(startingDocuments) }
@@ -594,6 +597,15 @@ struct ContentView: View {
             walletPasses = signed; showingWallet = true
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch { self.error = error.localizedDescription }
+    }
+
+    /// Once the Wallet sheet closes, people who have made a few passes may be asked to rate the app (ReviewPrompt).
+    /// Never from the share sheet, so it doesn't get between the person and the app they shared from.
+    private func askForReview() {
+        guard onClose == nil, ReviewPrompt.shouldAsk(passesMade: history.passes.count, version: ReviewPrompt.appVersion, lastAskedVersion: reviewAskedVersion) else { return }
+        reviewAskedVersion = ReviewPrompt.appVersion
+        // A moment after the sheet has gone, so it doesn't feel like part of adding the pass.
+        Task { try? await Task.sleep(for: .seconds(1)); requestReview() }
     }
 
     @MainActor private func addToWallet(_ index: Int) async {
