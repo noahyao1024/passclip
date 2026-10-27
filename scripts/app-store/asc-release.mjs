@@ -55,13 +55,15 @@ function check(file) {
   return { locale, listing };
 }
 
-// Changes one localization, or adds it with the primary language's links. Prints each field before and after.
+// Changes one localization, or adds it. Links it doesn't have yet come from the primary language: adding a language's
+// name also adds an empty version localization for it. Prints each field before and after.
 async function upsert(type, existing, locale, attributes, primary, links, parent) {
   const current = existing.find((l) => l.attributes.locale === locale);
-  for (const [k, v] of Object.entries(attributes)) console.log(`${locale} ${k}: ${JSON.stringify(current?.attributes[k] ?? null)} -> ${JSON.stringify(v)}`);
-  if (current) return api("PATCH", `/v1/${type}/${current.id}`, { data: { type, id: current.id, attributes } });
-  const copied = pick(existing.find((l) => l.attributes.locale === primary)?.attributes ?? {}, links);
-  return api("POST", `/v1/${type}`, { data: { type, attributes: { locale, ...copied, ...attributes }, relationships: parent } });
+  const copied = pick(existing.find((l) => l.attributes.locale === primary)?.attributes ?? {}, links.filter((k) => !current?.attributes[k]));
+  const all = { ...copied, ...attributes };
+  for (const [k, v] of Object.entries(all)) console.log(`${locale} ${k}: ${JSON.stringify(current?.attributes[k] ?? null)} -> ${JSON.stringify(v)}`);
+  if (current) return api("PATCH", `/v1/${type}/${current.id}`, { data: { type, id: current.id, attributes: all } });
+  return api("POST", `/v1/${type}`, { data: { type, attributes: { locale, ...all }, relationships: parent } });
 }
 
 async function metadata(name, file) {
