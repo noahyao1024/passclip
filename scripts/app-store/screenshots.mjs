@@ -4,6 +4,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { PNG } from "pngjs";
+import sharp from "sharp";
 import { api } from "./asc-lib.mjs";
 
 // The two display targets emitted by frame-screenshots.ts. Include their accepted landscape sizes.
@@ -12,30 +13,20 @@ const targets = [
   { prefix: "ipad-", displayType: "APP_IPAD_PRO_3GEN_129", sizes: [[2064, 2752], [2048, 2732]] },
 ];
 
-function imageSize(bytes, name) {
+async function imageSize(bytes, name) {
   if (/\.png$/i.test(name)) {
     const image = PNG.sync.read(bytes, { checkCRC: true });
     if (image.alpha || image.data.some((value, index) => index % 4 === 3 && value !== 255)) throw new Error(`${name}: remove the alpha channel/transparency before uploading`);
     return [image.width, image.height];
   }
-  // JPEGs have no alpha. Check the markers, complete header, dimensions and end marker.
+  // JPEGs have no alpha. Require a complete file, then decode every pixel: metadata
+  // alone can accept a valid header with corrupt or truncated scan data.
   if (bytes.length < 4 || bytes.readUInt16BE(0) !== 0xffd8 || bytes.readUInt16BE(bytes.length - 2) !== 0xffd9) throw new Error(`${name}: invalid or truncated JPEG`);
-  let size;
-  for (let offset = 2; offset < bytes.length - 2;) {
-    if (bytes[offset++] !== 0xff) break;
-    while (bytes[offset] === 0xff) offset++;
-    const marker = bytes[offset++];
-    if (offset + 2 > bytes.length) break;
-    const length = bytes.readUInt16BE(offset);
-    if (length < 2 || offset + length > bytes.length) break;
-    if ([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(marker) && length >= 8) size = [bytes.readUInt16BE(offset + 5), bytes.readUInt16BE(offset + 3)];
-    if (marker === 0xda && size) return size;
-    offset += length;
-  }
-  throw new Error(`${name}: invalid JPEG header`);
+  const { info } = await sharp(bytes, { failOn: "warning" }).raw().toBuffer({ resolveWithObject: true });
+  return [info.width, info.height];
 }
 
-export function readScreenshots(folder) {
+export async function readScreenshots(folder) {
   const names = readdirSync(folder).filter((name) => /\.(png|jpe?g)$/i.test(name)).sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
   if (!names.length) throw new Error("no screenshots found; use iphone-*.jpg/png and/or ipad-*.jpg/png");
   const groups = targets.map((target) => ({ ...target, files: [] }));
@@ -46,7 +37,7 @@ export function readScreenshots(folder) {
     if (!statSync(path).isFile()) throw new Error(`${name}: expected a screenshot file`);
     const bytes = readFileSync(path);
     let size;
-    try { size = imageSize(bytes, name); } catch (error) { throw new Error(`${name}: screenshot preflight failed: ${error.message}`); }
+    try { size = await imageSize(bytes, name); } catch (error) { throw new Error(`${name}: screenshot preflight failed: ${error.message}`); }
     if (!group.sizes.some(([w, h]) => (size[0] === w && size[1] === h) || (size[0] === h && size[1] === w))) throw new Error(`${name}: ${size.join(" × ")} is not an accepted size for ${group.displayType}`);
     group.files.push({ name, bytes });
     if (group.files.length > 10) throw new Error(`${group.displayType}: at most 10 screenshots are allowed`);

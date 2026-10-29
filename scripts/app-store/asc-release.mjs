@@ -161,7 +161,7 @@ async function cancel(name) {
 
 async function screenshots(name, folder, locale = "en-US") {
   // Read and validate every file, including other device sets, before deleting anything.
-  const groups = readScreenshots(folder);
+  const groups = await readScreenshots(folder);
   const v = await version(name);
   if (!editable.includes(v.attributes.appStoreState)) throw new Error(`version ${name} is ${v.attributes.appStoreState} and can't change screenshots`);
   const locs = await list(`/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations?limit=200`);

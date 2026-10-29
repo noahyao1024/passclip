@@ -67,8 +67,13 @@ Only targets present in the folder are replaced; other screenshot sets and local
 are left alone. Unknown image prefixes and empty folders fail.
 
 Before any API request, the uploader reads every input into memory, checks file
-types, PNG decoding/CRC and absence of alpha/transparency, JPEG headers and end
-markers, dimensions, and counts. It resolves the requested version and locale and
+types, PNG decoding/CRC and absence of alpha/transparency, complete JPEG pixel
+decoding (including corrupt or truncated scan data), dimensions, and counts.
+JPEG validation uses Sharp, already used by Next.js and declared directly as a
+development dependency for these tools; it fully decodes at the original size with
+[`failOn: "warning"`](https://sharp.pixelplumbing.com/api-constructor/) before any
+remote operation. The original compressed bytes are uploaded unchanged.
+It resolves the requested version and locale and
 reads all affected sets before deleting old screenshots. A version must be editable
 (`PREPARE_FOR_SUBMISSION`, `DEVELOPER_REJECTED`, `REJECTED`, or `METADATA_REJECTED`).
 

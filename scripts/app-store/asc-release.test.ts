@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PNG } from "pngjs";
+import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "./asc-lib.mjs";
 import { run } from "./asc-release.mjs";
@@ -182,6 +183,44 @@ describe("screenshot replacement", () => {
     writeFileSync(join(folder, "ipad-1.png"), "not an image");
     await expect(run(["screenshots", "1.2", folder])).rejects.toThrow("preflight failed");
     expect(api).not.toHaveBeenCalled();
+  });
+
+  it("rejects the header-only JPEG from review before any API or upload request", async () => {
+    writeFileSync(join(folder, "iphone-1.png"), iphone);
+    writeFileSync(join(folder, "iphone-2.jpg"), Buffer.from([255, 216, 255, 192, 0, 8, 8, 11, 52, 5, 40, 1, 255, 218, 0, 2, 255, 217]));
+    await expect(run(["screenshots", "1.2", folder])).rejects.toThrow("preflight failed");
+    expect(api).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each(["corrupt", "truncated"])("rejects a header-valid JPEG with %s scan data before any API or upload request", async (kind) => {
+    const bytes = await sharp(iphone).jpeg({ quality: 92 }).toBuffer();
+    const scan = bytes.indexOf(Buffer.from([0xff, 0xda]));
+    expect(scan).toBeGreaterThan(0);
+    const scanStart = scan + 2 + bytes.readUInt16BE(scan + 2);
+    // Preserve the complete header and EOI marker so a header-only check accepts it.
+    const damaged = kind === "truncated"
+      ? Buffer.concat([bytes.subarray(0, scanStart + Math.floor((bytes.length - scanStart - 2) / 2)), bytes.subarray(-2)])
+      : Buffer.from(bytes);
+    if (kind === "corrupt") damaged.fill(0xff, scanStart, damaged.length - 2);
+    const metadata = await sharp(damaged).metadata();
+    expect([metadata.width, metadata.height]).toEqual([1320, 2868]);
+    writeFileSync(join(folder, "iphone-1.png"), iphone);
+    writeFileSync(join(folder, "iphone-2.jpeg"), damaged);
+    await expect(run(["screenshots", "1.2", folder])).rejects.toThrow("preflight failed");
+    expect(api).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("fully decodes a valid JPEG and uploads its original compressed bytes", async () => {
+    const bytes = await sharp(iphone).jpeg({ quality: 92 }).toBuffer();
+    writeFileSync(join(folder, "iphone-1.jpg"), bytes);
+    sequence([...screenshotReads(), { method: "DELETE", path: "/v1/appScreenshots/old-shot" }, reserve(bytes, "iphone-1.jpg"), commit(bytes), processing("COMPLETE")]);
+    const upload = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", upload);
+    await run(["screenshots", "1.2", folder]);
+    expect(Buffer.concat(upload.mock.calls.map(([, options]) => options.body))).toEqual(bytes);
+    expect(console.log).toHaveBeenCalledWith("screenshots complete:", "1.2", "en-US", "APP_IPHONE_67", 1);
   });
 
   it.each(["empty", "wrong-size", "alpha", "truncated-jpeg", "directory", "unknown-prefix", "too-many"])("rejects %s input before deleting anything", async (kind) => {
